@@ -1,0 +1,65 @@
+@import "tailwindcss";
+
+@theme {
+  --color-wine-dark: #561c24;
+  --color-wine-medium: #6d2932;
+  --color-wine-soft: #7a333d;
+  --color-wine-deep: #3f1218;
+  --color-wine-subtle: #8a3c48;
+  
+  --color-beige-medium: #c7b7a3;
+  --color-beige-light: #E8d8c4;
+  --color-beige-surface: #f4eae0;
+  --color-beige-card: #eee2d4;
+  --color-beige-warm: #dfcfbc;
+
+  --font-serif: "Newsreader", Georgia, serif;
+  --font-display: "Cinzel", "Newsreader", serif;
+  --font-sans: "Plus Jakarta Sans", system-ui, -apple-system, sans-serif;
+}
+
+:root {
+  color-scheme: light;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: #E8d8c4;
+  color: #561c24;
+  min-height: 100vh;
+  margin: 0;
+  padding: 0;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Custom scrollbars that fit the warm minimalist aesthetic */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #E8d8c4;
+}
+::-webkit-scrollbar-thumb {
+  background: #c7b7a3;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #6d2932;
+}
+
+/* Card 3D Flip perspective styles */
+.perspective-1000 {
+  perspective: 1000px;
+}
+.transform-style-3d {
+  transform-style: preserve-3d;
+}
+.backface-hidden {
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+.rotate-y-180 {
+  transform: rotateY(180deg);
+}

@@ -1,0 +1,93 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function getUserCoupleId() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.coupleId;
+    }
+
+    function isCoupleMember(coupleId) {
+      return isSignedIn() && (
+        (coupleId != null && getUserCoupleId() == coupleId) ||
+        (exists(/databases/$(database)/documents/couples/$(coupleId)) && (
+          get(/databases/$(database)/documents/couples/$(coupleId)).data.partner1Id == request.auth.uid ||
+          get(/databases/$(database)/documents/couples/$(coupleId)).data.partner2Id == request.auth.uid
+        ))
+      );
+    }
+
+    // Default deny all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Test connection doc
+    match /test/connection {
+      allow read: if true;
+    }
+
+    // Users collection: only owner can modify, authenticated users can read to pair
+    match /users/{userId} {
+      allow read: if isSignedIn();
+      allow create, update, delete: if isOwner(userId);
+    }
+
+    // Couples collection: authenticated can query codes to join; only partners can update/delete
+    match /couples/{coupleId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && request.resource.data.partner1Id == request.auth.uid;
+      allow update: if isSignedIn() && (
+        resource.data.partner1Id == request.auth.uid ||
+        resource.data.partner2Id == request.auth.uid ||
+        resource.data.partner2Id == null ||
+        resource.data.partner2Id == "" ||
+        request.resource.data.partner2Id == request.auth.uid
+      );
+      allow delete: if isSignedIn() && (
+        resource.data.partner1Id == request.auth.uid ||
+        resource.data.partner2Id == request.auth.uid
+      );
+    }
+
+    // Events collection: only partner members can read and manage their events
+    match /events/{eventId} {
+      allow read: if isSignedIn() && (resource.data.coupleId == null || isCoupleMember(resource.data.coupleId));
+      allow create: if isSignedIn() && request.resource.data.createdBy == request.auth.uid && isCoupleMember(request.resource.data.coupleId);
+      allow update: if isSignedIn() && (resource.data.createdBy == request.auth.uid || isCoupleMember(resource.data.coupleId));
+      allow delete: if isSignedIn() && (resource.data.createdBy == request.auth.uid || isCoupleMember(resource.data.coupleId));
+    }
+
+    // Media Items collection (Filmes, Séries, Livros, Lugares, Listas temáticas)
+    match /media_items/{mediaItemId} {
+      allow read: if isSignedIn() && (resource.data.coupleId == null || isCoupleMember(resource.data.coupleId));
+      allow create: if isSignedIn() && request.resource.data.createdBy == request.auth.uid && isCoupleMember(request.resource.data.coupleId);
+      allow update: if isSignedIn() && isCoupleMember(resource.data.coupleId);
+      allow delete: if isSignedIn() && (resource.data.createdBy == request.auth.uid || isCoupleMember(resource.data.coupleId));
+    }
+
+    // Custom lists / thematic collections
+    match /custom_lists/{listId} {
+      allow read: if isSignedIn() && (resource.data.coupleId == null || isCoupleMember(resource.data.coupleId));
+      allow create: if isSignedIn() && isCoupleMember(request.resource.data.coupleId);
+      allow update: if isSignedIn() && isCoupleMember(resource.data.coupleId);
+      allow delete: if isSignedIn() && isCoupleMember(resource.data.coupleId);
+    }
+
+    // Questions collection
+    match /questions/{questionId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && (request.resource.data.coupleId == null || isCoupleMember(request.resource.data.coupleId));
+      allow update: if isSignedIn() && (resource.data.coupleId == null || isCoupleMember(resource.data.coupleId));
+      allow delete: if isSignedIn() && resource.data.isCustom == true && (resource.data.createdBy == request.auth.uid || isCoupleMember(resource.data.coupleId));
+    }
+  }
+}

@@ -1,0 +1,126 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile representing one member of a couple",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "maxLength": 128 },
+        "email": { "type": "string", "maxLength": 128 },
+        "displayName": { "type": "string", "maxLength": 100 },
+        "coupleId": { "type": "string", "maxLength": 64 },
+        "partnerName": { "type": "string", "maxLength": 100 },
+        "createdAt": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["uid", "email", "displayName", "createdAt"]
+    },
+    "Couple": {
+      "title": "Couple",
+      "description": "Shared private space for two paired users",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 64 },
+        "code": { "type": "string", "maxLength": 20 },
+        "partner1Id": { "type": "string", "maxLength": 128 },
+        "partner1Name": { "type": "string", "maxLength": 100 },
+        "partner2Id": { "type": "string", "maxLength": 128 },
+        "partner2Name": { "type": "string", "maxLength": 100 },
+        "spaceName": { "type": "string", "maxLength": 100 },
+        "createdAt": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["id", "code", "partner1Id", "partner1Name", "createdAt"]
+    },
+    "Event": {
+      "title": "Event",
+      "description": "Upcoming or past couple event, show, festival, anniversary, or trip",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 64 },
+        "coupleId": { "type": "string", "maxLength": 64 },
+        "title": { "type": "string", "maxLength": 120 },
+        "category": { "type": "string", "maxLength": 50 },
+        "location": { "type": "string", "maxLength": 120 },
+        "dateTime": { "type": "string", "maxLength": 64 },
+        "notes": { "type": "string", "maxLength": 500 },
+        "createdBy": { "type": "string", "maxLength": 128 },
+        "createdAt": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["id", "coupleId", "title", "category", "location", "dateTime", "createdBy", "createdAt"]
+    },
+    "MediaItem": {
+      "title": "MediaItem",
+      "description": "Movie, series, book, or place in couple's wishlist or completed library with ratings",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 64 },
+        "coupleId": { "type": "string", "maxLength": 64 },
+        "type": { "type": "string", "maxLength": 30 },
+        "status": { "type": "string", "maxLength": 30 },
+        "title": { "type": "string", "maxLength": 150 },
+        "priority": { "type": "string", "maxLength": 20 },
+        "location": { "type": "string", "maxLength": 120 },
+        "authorOrDirector": { "type": "string", "maxLength": 100 },
+        "ratings": { "type": "object" },
+        "averageScore": { "type": "number" },
+        "createdBy": { "type": "string", "maxLength": 128 },
+        "createdAt": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["id", "coupleId", "type", "status", "title", "createdBy", "createdAt"]
+    },
+    "Question": {
+      "title": "Question",
+      "description": "Prompt card question for couple's conversation game",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 64 },
+        "coupleId": { "type": "string", "maxLength": 64 },
+        "text": { "type": "string", "maxLength": 500 },
+        "category": { "type": "string", "maxLength": 60 },
+        "isCustom": { "type": "boolean" },
+        "createdBy": { "type": "string", "maxLength": 128 },
+        "createdAt": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["id", "text", "category", "isCustom", "createdAt"]
+    },
+    "CustomListTheme": {
+      "title": "CustomListTheme",
+      "description": "Custom thematic list created by couple for shared rating and ranking",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 64 },
+        "coupleId": { "type": "string", "maxLength": 64 },
+        "name": { "type": "string", "maxLength": 100 },
+        "pendingLabel": { "type": "string", "maxLength": 100 },
+        "completedLabel": { "type": "string", "maxLength": 100 },
+        "createdAt": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["id", "coupleId", "name", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "Stores user profiles with couple connection"
+    },
+    "/couples/{coupleId}": {
+      "schema": { "$ref": "#/entities/Couple" },
+      "description": "Stores paired couple rooms"
+    },
+    "/events/{eventId}": {
+      "schema": { "$ref": "#/entities/Event" },
+      "description": "Stores countdown events for couples"
+    },
+    "/media_items/{mediaItemId}": {
+      "schema": { "$ref": "#/entities/MediaItem" },
+      "description": "Stores movies, series, books, and places for couples"
+    },
+    "/custom_lists/{listId}": {
+      "schema": { "$ref": "#/entities/CustomListTheme" },
+      "description": "Stores custom thematic lists created by the couple"
+    },
+    "/questions/{questionId}": {
+      "schema": { "$ref": "#/entities/Question" },
+      "description": "Stores conversation card questions (system & custom)"
+    }
+  }
+}

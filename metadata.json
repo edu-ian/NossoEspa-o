@@ -1,0 +1,6 @@
+{
+  "name": "Nosso Espaço",
+  "description": "Espaço íntimo e minimalista para casais: conexão via código, contagem regressiva de eventos, biblioteca com ranking compartilhado e cartas de conversa.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
