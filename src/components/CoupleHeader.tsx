@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 
 export const CoupleHeader: React.FC = () => {
-  const { couple, user, isDemo, demoPartnerView, toggleDemoPartner, currentUserName, clearActiveSpace, logout } = useAuth();
+  const { couple, user, isDemo, demoPartnerView, toggleDemoPartner, currentUserName, clearActiveSpace } = useAuth();
   const [copied, setCopied] = useState<boolean>(false);
 
   if (!couple) return null;
@@ -87,16 +87,6 @@ export const CoupleHeader: React.FC = () => {
               {copied ? 'Copiado!' : 'Copiar'}
             </button>
           </div>
-
-          {/* Logout / Sair da conta button */}
-          <button
-            type="button"
-            onClick={logout}
-            className="text-xs text-[#6d2932] hover:text-[#561c24] underline-offset-4 hover:underline font-medium cursor-pointer"
-            title="Encerrar sessão e sair da conta"
-          >
-            Sair da conta
-          </button>
 
           {/* Demo Mode switcher */}
           {isDemo && (

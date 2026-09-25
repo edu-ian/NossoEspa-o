@@ -9,7 +9,7 @@ interface NavbarProps {
 }
 
 export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab }) => {
-  const { logout, currentUserName, isDemo, clearActiveSpace } = useAuth();
+  const { logout, currentUserName, isDemo } = useAuth();
 
   const navItems: { id: NavTab; label: string; mobileLabel: string }[] = [
     { id: 'events', label: 'Timeline & Shows', mobileLabel: 'Eventos' },
@@ -78,21 +78,11 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab }) => {
           </div>
 
           {/* User profile & Actions */}
-          <div className="flex items-center gap-3.5">
-            <button
-              type="button"
-              onClick={clearActiveSpace}
-              className="bg-[#561c24] hover:bg-[#6d2932] text-[#E8d8c4] hover:text-white text-xs uppercase tracking-widest font-medium px-3.5 py-1.5 shadow-xs transition-colors cursor-pointer flex items-center gap-1.5 border border-[#561c24]"
-              title="Trocar de espaço (Lobby de slots)"
-            >
-              <span>⇄</span>
-              <span>Trocar Espaço</span>
-            </button>
-
+          <div className="flex items-center gap-4">
             <button
               type="button"
               onClick={() => setActiveTab('profile')}
-              className="text-xs text-[#6d2932] hover:text-[#561c24] font-sans text-left"
+              className="text-xs text-[#6d2932] hover:text-[#561c24] font-sans text-left cursor-pointer"
             >
               Olá, <strong className="text-[#561c24] font-medium underline underline-offset-2">{currentUserName}</strong>
               {isDemo && <span className="ml-1 text-[10px] text-[#6d2932]">(Demo)</span>}
@@ -108,8 +98,8 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab }) => {
         </div>
       </nav>
 
-      {/* MOBILE TOP BAR (Minimal Header with explicit switch space and exit test button) */}
-      <div className="sm:hidden bg-[#f4eae0] border-b border-[#c7b7a3] px-3.5 py-2.5 flex items-center justify-between gap-2">
+      {/* MOBILE TOP BAR (Minimal Header) */}
+      <div className="sm:hidden bg-[#f4eae0] border-b border-[#c7b7a3] px-4 py-2.5 flex items-center justify-between gap-2">
         <button
           type="button"
           onClick={() => setActiveTab('events')}
@@ -119,16 +109,6 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab }) => {
         </button>
 
         <div className="flex items-center gap-2">
-          {/* Mobile Bordô Button for Trocar Espaço */}
-          <button
-            type="button"
-            onClick={clearActiveSpace}
-            className="bg-[#561c24] hover:bg-[#6d2932] text-[#E8d8c4] hover:text-white text-[11px] uppercase tracking-wider font-medium px-2.5 py-1 shadow-xs transition-colors cursor-pointer border border-[#561c24]"
-            title="Trocar de espaço"
-          >
-            ⇄ Espaços
-          </button>
-
           {isDemo ? (
             <button
               type="button"
