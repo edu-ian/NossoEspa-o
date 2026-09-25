@@ -6,6 +6,7 @@
 import React, { useState } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { LandingPage } from './components/LandingPage';
+import { SpaceSelection } from './components/SpaceSelection';
 import { Navbar, NavTab } from './components/Navbar';
 import { CoupleHeader } from './components/CoupleHeader';
 import { EventsSection } from './components/EventsSection';
@@ -15,14 +16,8 @@ import { MetricsSection } from './components/MetricsSection';
 import { ProfileSection } from './components/ProfileSection';
 
 function MainApp() {
-  const { user, couple, loading, createCoupleSpace, joinCoupleSpace, startDemoMode } = useAuth();
+  const { user, couple, loading, isDemo, logout } = useAuth();
   const [activeTab, setActiveTab] = useState<NavTab>('events');
-
-  // Couple onboarding states if user signed in without couple
-  const [spaceNameInput, setSpaceNameInput] = useState<string>('');
-  const [joinCodeInput, setJoinCodeInput] = useState<string>('');
-  const [onboardError, setOnboardError] = useState<string>('');
-  const [isProcessing, setIsProcessing] = useState<boolean>(false);
 
   if (loading) {
     return (
@@ -35,126 +30,38 @@ function MainApp() {
     );
   }
 
-  // Not signed in or no couple -> Landing Page
+  // Not signed in -> Landing Page
   if (!user && !couple) {
     return <LandingPage />;
   }
 
-  // Signed in with Firebase Auth, but hasn't created or joined a space yet
+  // Signed in, but no active space selected -> Space Selection Screen (Lobby/Slots)
   if (user && !couple) {
-    const handleCreateSpace = async (e: React.FormEvent) => {
-      e.preventDefault();
-      setIsProcessing(true);
-      setOnboardError('');
-      try {
-        await createCoupleSpace(spaceNameInput.trim() || undefined);
-      } catch (err: unknown) {
-        setOnboardError(err instanceof Error ? err.message : 'Erro ao criar espaço.');
-      } finally {
-        setIsProcessing(false);
-      }
-    };
-
-    const handleJoinCode = async (e: React.FormEvent) => {
-      e.preventDefault();
-      if (!joinCodeInput.trim()) return;
-      setIsProcessing(true);
-      setOnboardError('');
-      try {
-        const ok = await joinCoupleSpace(joinCodeInput.trim());
-        if (!ok) {
-          setOnboardError('Código de convite não encontrado. Verifique com seu parceiro(a).');
-        }
-      } catch (err: unknown) {
-        setOnboardError(err instanceof Error ? err.message : 'Erro ao entrar com código.');
-      } finally {
-        setIsProcessing(false);
-      }
-    };
-
-    return (
-      <div className="min-h-screen bg-[#E8d8c4] text-[#561c24] flex flex-col justify-center px-6 py-12">
-        <div className="max-w-xl mx-auto w-full bg-[#f4eae0] border-2 border-[#561c24] p-8 sm:p-10 shadow-[0_10px_30px_rgba(86,28,36,0.08)]">
-          <div className="text-center mb-8">
-            <span className="text-[11px] font-mono uppercase tracking-widest text-[#6d2932]">
-              Passo Único de Pareamento
-            </span>
-            <h1 className="font-serif text-3xl sm:text-4xl text-[#561c24] font-normal mt-1">
-              Bem-vindo, {user.displayName}
-            </h1>
-            <p className="text-sm text-[#6d2932] mt-2 font-sans">
-              Para começar, crie um novo espaço a dois ou conecte-se ao espaço já criado pelo seu amor.
-            </p>
-          </div>
-
-          {onboardError && (
-            <div className="p-3 mb-6 bg-[#6d2932]/10 border border-[#6d2932] text-xs text-[#561c24]">
-              {onboardError}
-            </div>
-          )}
-
-          <div className="space-y-8">
-            {/* Option 1: Create space */}
-            <form onSubmit={handleCreateSpace} className="space-y-3 border-b border-[#c7b7a3] pb-6">
-              <label className="block text-xs uppercase tracking-wider text-[#6d2932] font-semibold">
-                Opção 1 • Criar Nosso Espaço
-              </label>
-              <input
-                type="text"
-                value={spaceNameInput}
-                onChange={(e) => setSpaceNameInput(e.target.value)}
-                placeholder="Ex: Espaço de Lucas & Ana"
-                className="w-full px-3.5 py-2.5 bg-[#E8d8c4] border border-[#c7b7a3] focus:border-[#561c24] text-[#561c24] text-sm outline-none"
-              />
-              <button
-                type="submit"
-                disabled={isProcessing}
-                className="w-full py-3 bg-[#561c24] text-[#E8d8c4] text-xs font-semibold uppercase tracking-wider hover:bg-[#6d2932] transition-colors"
-              >
-                {isProcessing ? 'Gerando Código...' : 'Criar Espaço e Gerar Código'}
-              </button>
-            </form>
-
-            {/* Option 2: Join with existing code */}
-            <form onSubmit={handleJoinCode} className="space-y-3">
-              <label className="block text-xs uppercase tracking-wider text-[#6d2932] font-semibold">
-                Opção 2 • Já possuo o código de convite
-              </label>
-              <input
-                type="text"
-                required
-                value={joinCodeInput}
-                onChange={(e) => setJoinCodeInput(e.target.value.toUpperCase())}
-                placeholder="Código do seu parceiro(a)"
-                className="w-full px-3.5 py-2.5 bg-[#E8d8c4] border border-[#c7b7a3] focus:border-[#561c24] text-[#561c24] text-center font-mono text-lg font-bold tracking-widest outline-none"
-              />
-              <button
-                type="submit"
-                disabled={isProcessing}
-                className="w-full py-3 bg-[#f4eae0] border border-[#561c24] text-[#561c24] text-xs font-semibold uppercase tracking-wider hover:bg-[#E8d8c4] transition-colors"
-              >
-                {isProcessing ? 'Conectando...' : 'Parear Espaço'}
-              </button>
-            </form>
-
-            <div className="text-center pt-2">
-              <button
-                type="button"
-                onClick={() => startDemoMode()}
-                className="text-xs text-[#6d2932] underline hover:text-[#561c24]"
-              >
-                Ou explore a demonstração instantânea com dados de teste
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
+    return <SpaceSelection />;
   }
 
-  // Active Paired Couple Experience
+  // Active Paired Couple Experience (Dashboard of Selected Space)
   return (
     <div className="min-h-screen bg-[#E8d8c4] text-[#561c24] flex flex-col justify-between selection:bg-[#561c24] selection:text-[#E8d8c4]">
+      {/* Explicit Demo Mode Exit Banner */}
+      {isDemo && (
+        <div className="bg-[#561c24] text-[#E8d8c4] border-b border-[#3f1218] px-4 py-2 text-xs flex items-center justify-between z-50">
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+            <span className="font-medium">
+              Modo Teste Ativo (Dados de Demonstração)
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={logout}
+            className="px-2.5 py-0.5 bg-[#E8d8c4] text-[#561c24] font-semibold uppercase tracking-wider text-[10px] hover:bg-white transition-colors cursor-pointer"
+          >
+            Sair do Modo Teste ✕
+          </button>
+        </div>
+      )}
+
       <div>
         <Navbar activeTab={activeTab} setActiveTab={setActiveTab} />
         <CoupleHeader />
@@ -164,7 +71,19 @@ function MainApp() {
           {activeTab === 'library' && <MediaLibrary />}
           {activeTab === 'questions' && <QuestionsGame />}
           {activeTab === 'metrics' && (
-            <MetricsSection onNavigateToTab={(t) => setActiveTab(t as NavTab)} />
+            <MetricsSection
+              onNavigateToTab={(tab) => {
+                if (
+                  tab === 'events' ||
+                  tab === 'library' ||
+                  tab === 'questions' ||
+                  tab === 'metrics' ||
+                  tab === 'profile'
+                ) {
+                  setActiveTab(tab);
+                }
+              }}
+            />
           )}
           {activeTab === 'profile' && <ProfileSection />}
         </main>

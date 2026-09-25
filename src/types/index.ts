@@ -3,7 +3,9 @@ export interface UserProfile {
   email: string;
   displayName: string;
   photoURL?: string;
-  coupleId?: string;
+  coupleId?: string; // legacy support
+  spaceIds?: string[]; // IDs of spaces this user is part of (max 3)
+  activeSpaceId?: string;
   partnerName?: string;
   createdAt: string;
 }
@@ -11,6 +13,7 @@ export interface UserProfile {
 export interface Couple {
   id: string;
   code: string; // e.g. "NOSSO-892"
+  members?: string[]; // IDs of members (max 2 members per space)
   partner1Id: string;
   partner1Name: string;
   partner2Id?: string;
@@ -18,7 +21,10 @@ export interface Couple {
   spaceName?: string;
   anniversaryDate?: string;
   createdAt: string;
+  updatedAt?: string;
 }
+
+export type Space = Couple;
 
 export type EventCategory = 'show' | 'teatro' | 'festival' | 'viagem' | 'comemoracao' | 'outro';
 

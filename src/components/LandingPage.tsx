@@ -3,11 +3,11 @@ import { useAuth } from '../context/AuthContext';
 import { ModalDrawer } from './ModalDrawer';
 
 export const LandingPage: React.FC = () => {
-  const { loginWithGoogle, loginWithEmail, registerWithEmail, joinCoupleSpace, startDemoMode } =
+  const { loginWithGoogle, loginWithEmail, registerWithEmail, joinCoupleSpace, startDemoMode, clearActiveSpace } =
     useAuth();
 
   const [authModalOpen, setAuthModalOpen] = useState<boolean>(false);
-  const [authMode, setAuthMode] = useState<'create' | 'join'>('create');
+  const [authMode, setAuthMode] = useState<'create' | 'join' | 'login'>('create');
   const [isRegister, setIsRegister] = useState<boolean>(false);
 
   // Form states
@@ -18,7 +18,16 @@ export const LandingPage: React.FC = () => {
   const [formError, setFormError] = useState<string>('');
   const [loadingAction, setLoadingAction] = useState<boolean>(false);
 
+  const openLoginFlow = () => {
+    clearActiveSpace();
+    setAuthMode('login');
+    setIsRegister(false);
+    setFormError('');
+    setAuthModalOpen(true);
+  };
+
   const openCreateFlow = () => {
+    clearActiveSpace();
     setAuthMode('create');
     setIsRegister(true);
     setFormError('');
@@ -26,6 +35,7 @@ export const LandingPage: React.FC = () => {
   };
 
   const openJoinFlow = () => {
+    clearActiveSpace();
     setAuthMode('join');
     setFormError('');
     setAuthModalOpen(true);
@@ -35,6 +45,7 @@ export const LandingPage: React.FC = () => {
     setLoadingAction(true);
     setFormError('');
     try {
+      clearActiveSpace();
       await loginWithGoogle();
       setAuthModalOpen(false);
     } catch (err: unknown) {
@@ -51,6 +62,18 @@ export const LandingPage: React.FC = () => {
     setLoadingAction(true);
 
     try {
+      if (authMode === 'login') {
+        if (!email.trim() || !password.trim()) {
+          setFormError('Por favor, informe seu e-mail e senha.');
+          setLoadingAction(false);
+          return;
+        }
+        clearActiveSpace();
+        await loginWithEmail(email, password);
+        setAuthModalOpen(false);
+        return;
+      }
+
       if (authMode === 'join') {
         if (!inviteCode.trim()) {
           setFormError('Por favor, informe o código de convite (ex: NOSSO-892).');
@@ -127,11 +150,18 @@ export const LandingPage: React.FC = () => {
             </span>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5 sm:gap-3">
             <button
               type="button"
-              onClick={() => startDemoMode()}
-              className="text-xs uppercase tracking-wider text-[#561c24] font-bold transition-all px-4 py-2 bg-[#E8d8c4] hover:bg-white border border-[#E8d8c4] shadow-xs"
+              onClick={openLoginFlow}
+              className="text-xs uppercase tracking-widest text-[#E8d8c4] hover:text-white font-medium transition-colors px-3 py-1.5 sm:px-4 sm:py-2 border border-[#c7b7a3]/50 hover:border-white cursor-pointer"
+            >
+              Entrar no meu espaço
+            </button>
+            <button
+              type="button"
+              onClick={() => startDemoMode(undefined, true)}
+              className="text-xs uppercase tracking-wider text-[#561c24] font-bold transition-all px-3 py-1.5 sm:px-4 sm:py-2 bg-[#E8d8c4] hover:bg-white border border-[#E8d8c4] shadow-xs cursor-pointer"
             >
               Explorar Demonstração
             </button>
@@ -155,15 +185,22 @@ export const LandingPage: React.FC = () => {
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mt-10">
             <button
               type="button"
-              onClick={openCreateFlow}
-              className="w-full sm:w-auto px-9 py-4 bg-[#E8d8c4] text-[#561c24] font-bold tracking-wider text-xs uppercase hover:bg-white transition-all shadow-[0_10px_25px_rgba(0,0,0,0.25)] cursor-pointer"
+              onClick={openLoginFlow}
+              className="w-full sm:w-auto px-9 py-4 bg-[#E8d8c4] text-[#561c24] font-medium tracking-widest text-xs uppercase hover:bg-white transition-all shadow-[0_10px_25px_rgba(0,0,0,0.25)] cursor-pointer"
             >
-              Criar Nosso Espaço
+              Entrar no meu espaço
+            </button>
+            <button
+              type="button"
+              onClick={openCreateFlow}
+              className="w-full sm:w-auto px-8 py-4 bg-transparent text-[#E8d8c4] border border-[#c7b7a3]/60 hover:border-white hover:text-white font-medium tracking-widest text-xs uppercase transition-colors cursor-pointer"
+            >
+              Criar Novo Espaço
             </button>
             <button
               type="button"
               onClick={openJoinFlow}
-              className="w-full sm:w-auto px-8 py-4 bg-transparent text-[#E8d8c4] border border-[#c7b7a3]/60 hover:border-white hover:text-white font-semibold tracking-wider text-xs uppercase transition-colors cursor-pointer"
+              className="w-full sm:w-auto px-7 py-4 bg-transparent text-[#c7b7a3] hover:text-white font-medium tracking-widest text-xs uppercase transition-colors cursor-pointer"
             >
               Já tenho um código
             </button>
@@ -329,10 +366,22 @@ export const LandingPage: React.FC = () => {
       <ModalDrawer
         isOpen={authModalOpen}
         onClose={() => setAuthModalOpen(false)}
-        title={authMode === 'create' ? (isRegister ? 'Criar Nosso Espaço' : 'Acessar Espaço') : 'Entrar com Código'}
+        title={
+          authMode === 'login'
+            ? 'Entrar no Meu Espaço'
+            : authMode === 'create'
+            ? isRegister
+              ? 'Criar Nosso Espaço'
+              : 'Acessar Espaço'
+            : 'Entrar com Código'
+        }
         subtitle={
-          authMode === 'create'
-            ? 'Crie seu santuário compartilhado e convide sua pessoa especial.'
+          authMode === 'login'
+            ? 'Faça login para visualizar seus slots de santuário e acessar suas memórias a dois.'
+            : authMode === 'create'
+            ? isRegister
+              ? 'Crie seu santuário compartilhado e convide sua pessoa especial.'
+              : 'Acesse o espaço já compartilhado com seu parceiro(a).'
             : 'Digite o código de convite que seu parceiro(a) gerou.'
         }
       >
@@ -348,7 +397,7 @@ export const LandingPage: React.FC = () => {
             type="button"
             onClick={handleGoogleAuth}
             disabled={loadingAction}
-            className="w-full py-3 px-4 bg-[#f4eae0] border border-[#561c24] text-[#561c24] text-xs font-semibold uppercase tracking-wider hover:bg-[#E8d8c4] transition-colors flex items-center justify-center gap-2 cursor-pointer"
+            className="w-full py-3 px-4 bg-[#f4eae0] border border-[#561c24] text-[#561c24] text-xs uppercase tracking-widest font-medium hover:bg-[#E8d8c4] transition-colors flex items-center justify-center gap-2 cursor-pointer shadow-xs"
           >
             <span>Continuar com Google</span>
           </button>
@@ -424,10 +473,12 @@ export const LandingPage: React.FC = () => {
             <button
               type="submit"
               disabled={loadingAction}
-              className="w-full py-3 bg-[#561c24] text-[#E8d8c4] text-xs font-semibold uppercase tracking-wider hover:bg-[#6d2932] transition-colors cursor-pointer"
+              className="w-full py-3 bg-[#561c24] text-[#E8d8c4] text-xs uppercase tracking-widest font-medium hover:bg-[#6d2932] transition-colors cursor-pointer shadow-xs"
             >
               {loadingAction
                 ? 'Processando...'
+                : authMode === 'login'
+                ? 'Acessar Meus Slots de Espaço'
                 : authMode === 'create'
                 ? isRegister
                   ? 'Criar Espaço Compartilhado'
@@ -436,22 +487,39 @@ export const LandingPage: React.FC = () => {
             </button>
           </form>
 
-          <div className="flex items-center justify-between pt-2 border-t border-[#c7b7a3] text-xs text-[#6d2932]">
-            {authMode === 'create' ? (
+          <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-[#c7b7a3] text-xs text-[#6d2932]">
+            {authMode === 'login' ? (
               <button
                 type="button"
-                onClick={() => setIsRegister((prev) => !prev)}
+                onClick={() => {
+                  setAuthMode('create');
+                  setIsRegister(true);
+                }}
                 className="underline hover:text-[#561c24] cursor-pointer"
               >
-                {isRegister ? 'Já tem conta? Entrar' : 'Não tem conta? Cadastrar'}
+                Primeira vez aqui? Criar conta
+              </button>
+            ) : authMode === 'create' ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setAuthMode('login');
+                  setIsRegister(false);
+                }}
+                className="underline hover:text-[#561c24] cursor-pointer"
+              >
+                Já tem conta? Entrar no meu espaço
               </button>
             ) : (
               <button
                 type="button"
-                onClick={() => setAuthMode('create')}
+                onClick={() => {
+                  setAuthMode('login');
+                  setIsRegister(false);
+                }}
                 className="underline hover:text-[#561c24] cursor-pointer"
               >
-                Criar um novo espaço
+                Já tem conta? Entrar
               </button>
             )}
 
@@ -459,11 +527,11 @@ export const LandingPage: React.FC = () => {
               type="button"
               onClick={() => {
                 setAuthModalOpen(false);
-                startDemoMode(inviteCode.trim() || undefined);
+                startDemoMode(undefined, true);
               }}
               className="font-medium text-[#561c24] hover:underline cursor-pointer"
             >
-              Testar em modo demo →
+              Explorar slots em demonstração →
             </button>
           </div>
         </div>

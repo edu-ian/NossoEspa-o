@@ -11,17 +11,14 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == userId;
     }
 
-    function getUserCoupleId() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.coupleId;
-    }
-
     function isCoupleMember(coupleId) {
       return isSignedIn() && (
-        (coupleId != null && getUserCoupleId() == coupleId) ||
-        (exists(/databases/$(database)/documents/couples/$(coupleId)) && (
+        exists(/databases/$(database)/documents/couples/$(coupleId)) && (
+          (get(/databases/$(database)/documents/couples/$(coupleId)).data.members != null &&
+           request.auth.uid in get(/databases/$(database)/documents/couples/$(coupleId)).data.members) ||
           get(/databases/$(database)/documents/couples/$(coupleId)).data.partner1Id == request.auth.uid ||
           get(/databases/$(database)/documents/couples/$(coupleId)).data.partner2Id == request.auth.uid
-        ))
+        )
       );
     }
 
@@ -35,24 +32,40 @@ service cloud.firestore {
       allow read: if true;
     }
 
-    // Users collection: only owner can modify, authenticated users can read to pair
+    // Users collection: owner can modify, authenticated users can read to pair
     match /users/{userId} {
       allow read: if isSignedIn();
       allow create, update, delete: if isOwner(userId);
     }
 
-    // Couples collection: authenticated can query codes to join; only partners can update/delete
+    // Couples/Spaces collection: authenticated can query codes to join & view slots; members can update/delete
     match /couples/{coupleId} {
       allow read: if isSignedIn();
-      allow create: if isSignedIn() && request.resource.data.partner1Id == request.auth.uid;
+      allow create: if isSignedIn() && (
+        request.resource.data.partner1Id == request.auth.uid ||
+        (request.resource.data.members != null && request.auth.uid in request.resource.data.members)
+      );
+      // Strict update rule: only existing members OR a valid joining user claiming an empty partner2 slot
       allow update: if isSignedIn() && (
-        resource.data.partner1Id == request.auth.uid ||
-        resource.data.partner2Id == request.auth.uid ||
-        resource.data.partner2Id == null ||
-        resource.data.partner2Id == "" ||
-        request.resource.data.partner2Id == request.auth.uid
+        // Case 1: Active space member updating space info (cannot change invite code or partner1Id)
+        (
+          ((resource.data.members != null && request.auth.uid in resource.data.members) ||
+           resource.data.partner1Id == request.auth.uid ||
+           resource.data.partner2Id == request.auth.uid) &&
+          request.resource.data.code == resource.data.code &&
+          request.resource.data.partner1Id == resource.data.partner1Id
+        ) ||
+        // Case 2: New partner joining vacant partner2 slot (strictly bounded to max 2 members)
+        (
+          (resource.data.partner2Id == null || resource.data.partner2Id == "") &&
+          request.resource.data.partner2Id == request.auth.uid &&
+          request.resource.data.partner1Id == resource.data.partner1Id &&
+          request.resource.data.code == resource.data.code &&
+          (request.resource.data.members == null || request.resource.data.members.size() <= 2)
+        )
       );
       allow delete: if isSignedIn() && (
+        (resource.data.members != null && request.auth.uid in resource.data.members) ||
         resource.data.partner1Id == request.auth.uid ||
         resource.data.partner2Id == request.auth.uid
       );
