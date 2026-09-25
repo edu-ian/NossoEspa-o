@@ -47,6 +47,24 @@ export const SpaceSelection: React.FC = () => {
     setModalMode('join');
   };
 
+  const extractErrorMessage = (err: unknown, defaultMsg: string): string => {
+    if (err instanceof Error) {
+      try {
+        const parsed = JSON.parse(err.message);
+        if (parsed && typeof parsed.error === 'string') {
+          if (parsed.error.includes('Missing or insufficient permissions')) {
+            return 'Permissão insuficiente no Firestore. Verifique o código informado.';
+          }
+          return parsed.error;
+        }
+      } catch {
+        // Not JSON
+      }
+      return err.message;
+    }
+    return defaultMsg;
+  };
+
   const handleCreateSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsProcessing(true);
@@ -55,7 +73,7 @@ export const SpaceSelection: React.FC = () => {
       await createCoupleSpace(spaceNameInput.trim() || undefined);
       setModalMode(null);
     } catch (err: unknown) {
-      setFeedbackError(err instanceof Error ? err.message : 'Erro ao criar espaço.');
+      setFeedbackError(extractErrorMessage(err, 'Erro ao criar espaço.'));
     } finally {
       setIsProcessing(false);
     }
@@ -74,7 +92,7 @@ export const SpaceSelection: React.FC = () => {
         setModalMode(null);
       }
     } catch (err: unknown) {
-      setFeedbackError(err instanceof Error ? err.message : 'Erro ao entrar com código.');
+      setFeedbackError(extractErrorMessage(err, 'Erro ao entrar com código.'));
     } finally {
       setIsProcessing(false);
     }
@@ -87,7 +105,7 @@ export const SpaceSelection: React.FC = () => {
       await leaveOrDeleteSpace(spaceToDelete.id);
       setSpaceToDelete(null);
     } catch (err: unknown) {
-      setFeedbackError(err instanceof Error ? err.message : 'Erro ao remover espaço.');
+      setFeedbackError(extractErrorMessage(err, 'Erro ao remover espaço.'));
     } finally {
       setIsProcessing(false);
     }

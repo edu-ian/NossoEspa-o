@@ -609,9 +609,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       };
 
       await setDoc(coupleRef, newCouple);
-      await updateDoc(doc(db, 'users', user.uid), {
-        spaceIds: arrayUnion(coupleRef.id),
-      });
+      await setDoc(
+        doc(db, 'users', user.uid),
+        {
+          spaceIds: arrayUnion(coupleRef.id),
+        },
+        { merge: true }
+      );
 
       const updatedSpaces = [...spaces, newCouple].slice(0, 3);
       setSpaces(updatedSpaces);
@@ -681,7 +685,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const spaceDocRef = doc(db, 'couples', coupleDoc.id);
         const userDocRef = doc(db, 'users', user.uid);
 
+        // All reads MUST be executed before all writes in Firestore transactions
         const currentSnap = await transaction.get(spaceDocRef);
+        const userSnap = await transaction.get(userDocRef);
+
         if (!currentSnap.exists()) {
           throw new Error('Espaço não encontrado.');
         }
@@ -707,13 +714,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const initialMembers = [partner1Id, ...members, user.uid].filter((m): m is string => Boolean(m));
         const updatedMembers = Array.from(new Set(initialMembers));
 
+        // Writes start here
         transaction.update(spaceDocRef, {
           partner2Id: user.uid,
           partner2Name: user.displayName || 'Parceiro(a)',
           members: updatedMembers,
         });
 
-        const userSnap = await transaction.get(userDocRef);
         if (userSnap.exists()) {
           transaction.update(userDocRef, {
             spaceIds: arrayUnion(coupleDoc.id),
