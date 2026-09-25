@@ -93,3 +93,26 @@ export async function testConnection(): Promise<boolean> {
     return false;
   }
 }
+
+/**
+ * Recursively removes any keys with `undefined` values from an object,
+ * preventing Firestore errors like "Function addDoc() called with invalid data. Unsupported field value: undefined"
+ */
+export function sanitizeFirestorePayload<T>(obj: T): T {
+  if (obj === null || obj === undefined || typeof obj !== 'object') {
+    return obj;
+  }
+
+  if (Array.isArray(obj)) {
+    return obj.map((item) => sanitizeFirestorePayload(item)) as unknown as T;
+  }
+
+  const result: Record<string, any> = {};
+  for (const [key, value] of Object.entries(obj)) {
+    if (value !== undefined) {
+      result[key] = sanitizeFirestorePayload(value);
+    }
+  }
+  return result as T;
+}
+

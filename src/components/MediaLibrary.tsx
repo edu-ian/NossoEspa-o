@@ -9,7 +9,7 @@ import {
   doc,
   updateDoc,
 } from 'firebase/firestore';
-import { db, handleFirestoreError, OperationType } from '../firebase';
+import { db, handleFirestoreError, OperationType, sanitizeFirestorePayload } from '../firebase';
 import { useAuth } from '../context/AuthContext';
 import { MediaItem, MediaType, MediaStatus, PriorityLevel, UserRating, CustomListTheme } from '../types';
 import { ModalDrawer } from './ModalDrawer';
@@ -351,7 +351,7 @@ export const MediaLibrary: React.FC = () => {
     }
 
     try {
-      const docRef = await addDoc(collection(db, 'custom_lists'), themePayload);
+      const docRef = await addDoc(collection(db, 'custom_lists'), sanitizeFirestorePayload(themePayload));
       setActiveTabKey(docRef.id);
       setAddThemeModalOpen(false);
       setNewThemeName('');
@@ -408,7 +408,7 @@ export const MediaLibrary: React.FC = () => {
       customThemeName = themeObj?.name || 'Lista Personalizada';
     }
 
-    const newItemPayload = {
+    const newItemPayload = sanitizeFirestorePayload({
       coupleId: couple.id,
       type,
       status,
@@ -421,7 +421,7 @@ export const MediaLibrary: React.FC = () => {
       ratings: {},
       createdBy: currentUserId || user?.uid || 'user-1',
       createdAt: new Date().toISOString(),
-    };
+    });
 
     if (isDemo) {
       const createdItem: MediaItem = {
@@ -468,13 +468,13 @@ export const MediaLibrary: React.FC = () => {
     if (!selectedItemForRating || !couple) return;
 
     const existingRatings = selectedItemForRating.ratings || {};
-    const newRating: UserRating = {
+    const newRating = sanitizeFirestorePayload({
       userId: currentUserId,
       userName: currentUserName,
       score,
       comment: comment.trim() || undefined,
       updatedAt: new Date().toISOString(),
-    };
+    });
 
     const updatedRatings = {
       ...existingRatings,
@@ -482,8 +482,8 @@ export const MediaLibrary: React.FC = () => {
     };
 
     // Calculate new average
-    const scores = Object.values(updatedRatings).map((r) => r.score);
-    const averageScore = Number((scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(1));
+    const scores = Object.values(updatedRatings).map((r: any) => r.score);
+    const averageScore = Number((scores.reduce((a: number, b: number) => a + b, 0) / scores.length).toFixed(1));
 
     // Determine target completed status
     let newStatus = selectedItemForRating.status;
@@ -500,12 +500,12 @@ export const MediaLibrary: React.FC = () => {
       newStatus = 'completed';
     }
 
-    const updatedPayload = {
+    const updatedPayload = sanitizeFirestorePayload({
       status: newStatus,
       type: newType,
       ratings: updatedRatings,
       averageScore,
-    };
+    });
 
     if (isDemo) {
       const updated = mediaItems.map((item) =>

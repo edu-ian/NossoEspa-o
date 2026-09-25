@@ -9,7 +9,7 @@ import {
   doc,
   updateDoc,
 } from 'firebase/firestore';
-import { db, handleFirestoreError, OperationType } from '../firebase';
+import { db, handleFirestoreError, OperationType, sanitizeFirestorePayload } from '../firebase';
 import { useAuth } from '../context/AuthContext';
 import { QuestionItem } from '../types';
 import { DEFAULT_QUESTIONS } from '../data/defaultQuestions';
@@ -198,19 +198,19 @@ export const QuestionsGame: React.FC = () => {
 
     try {
       if (q.id && !q.id.startsWith('rom-') && !q.id.startsWith('fil-') && !q.id.startsWith('cri-') && !q.id.startsWith('int-') && !q.id.startsWith('fut-')) {
-        await updateDoc(doc(db, 'questions', q.id), {
+        await updateDoc(doc(db, 'questions', q.id), sanitizeFirestorePayload({
           text: q.text,
           category: q.category,
-        });
+        }));
       } else {
-        await addDoc(collection(db, 'questions'), {
+        await addDoc(collection(db, 'questions'), sanitizeFirestorePayload({
           coupleId: couple.id,
           text: q.text,
           category: q.category,
           isCustom: true,
           createdBy: currentUserId || user?.uid || 'user-1',
           createdAt: new Date().toISOString(),
-        });
+        }));
       }
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, 'questions');

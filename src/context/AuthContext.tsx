@@ -25,7 +25,7 @@ import {
   arrayRemove,
   runTransaction,
 } from 'firebase/firestore';
-import { auth, db, googleProvider, handleFirestoreError, OperationType, testConnection } from '../firebase';
+import { auth, db, googleProvider, handleFirestoreError, OperationType, sanitizeFirestorePayload, testConnection } from '../firebase';
 import { Couple, UserProfile } from '../types';
 
 interface AuthContextType {
@@ -608,7 +608,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         createdAt: new Date().toISOString(),
       };
 
-      await setDoc(coupleRef, newCouple);
+      await setDoc(coupleRef, sanitizeFirestorePayload(newCouple));
       await setDoc(
         doc(db, 'users', user.uid),
         {
@@ -778,7 +778,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     try {
-      await updateDoc(doc(db, 'couples', couple.id), data);
+      await updateDoc(doc(db, 'couples', couple.id), sanitizeFirestorePayload(data));
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, `couples/${couple.id}`);
     }

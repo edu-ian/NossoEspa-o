@@ -9,7 +9,7 @@ import {
   doc,
   updateDoc,
 } from 'firebase/firestore';
-import { db, handleFirestoreError, OperationType } from '../firebase';
+import { db, handleFirestoreError, OperationType, sanitizeFirestorePayload } from '../firebase';
 import { useAuth } from '../context/AuthContext';
 import { EventCategory, EventItem } from '../types';
 import { EventCountdown } from './EventCountdown';
@@ -175,10 +175,11 @@ export const EventsSection: React.FC = () => {
     }
 
     try {
+      const sanitized = sanitizeFirestorePayload(eventPayload);
       if (editingEvent) {
-        await updateDoc(doc(db, 'events', editingEvent.id), eventPayload);
+        await updateDoc(doc(db, 'events', editingEvent.id), sanitized);
       } else {
-        await addDoc(collection(db, 'events'), eventPayload);
+        await addDoc(collection(db, 'events'), sanitized);
       }
       setIsModalOpen(false);
     } catch (error) {
