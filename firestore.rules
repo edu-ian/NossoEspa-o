@@ -191,22 +191,22 @@ service cloud.firestore {
     match /questions/{questionId} {
       allow read: if isSignedIn() && (
         resource.data.get('coupleId', '') == '' ||
-        isCoupleMember(resource.data.coupleId)
+        isCoupleMember(resource.data.get('coupleId', ''))
       );
 
       allow create: if isSignedIn()
-        && isCoupleMember(request.resource.data.coupleId)
-        && request.resource.data.isCustom == true
-        && isNonEmptyString(request.resource.data.text, 1, 500)
-        && isNonEmptyString(request.resource.data.category, 1, 60);
+        && isCoupleMember(request.resource.data.get('coupleId', ''))
+        && request.resource.data.get('isCustom', false) == true
+        && isNonEmptyString(request.resource.data.get('text', ''), 1, 500)
+        && isNonEmptyString(request.resource.data.get('category', ''), 1, 60);
 
       allow update: if isSignedIn()
-        && isCoupleMember(resource.data.coupleId)
-        && request.resource.data.coupleId == resource.data.coupleId;
+        && isCoupleMember(resource.data.get('coupleId', ''))
+        && request.resource.data.get('coupleId', '') == resource.data.get('coupleId', '');
 
       allow delete: if isSignedIn()
-        && resource.data.isCustom == true
-        && isCoupleMember(resource.data.coupleId);
+        && resource.data.get('isCustom', false) == true
+        && isCoupleMember(resource.data.get('coupleId', ''));
     }
   }
 }
