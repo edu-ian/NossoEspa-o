@@ -29,14 +29,13 @@ service cloud.firestore {
     function isCoupleMember(coupleId) {
       return isSignedIn() && coupleId != null && coupleId != "" && (
         (exists(/databases/$(database)/documents/couples/$(coupleId)) && (
-          (get(/databases/$(database)/documents/couples/$(coupleId)).data.members != null &&
-           request.auth.uid in get(/databases/$(database)/documents/couples/$(coupleId)).data.members) ||
-          get(/databases/$(database)/documents/couples/$(coupleId)).data.partner1Id == request.auth.uid ||
-          get(/databases/$(database)/documents/couples/$(coupleId)).data.partner2Id == request.auth.uid
+          request.auth.uid in get(/databases/$(database)/documents/couples/$(coupleId)).data.get('members', []) ||
+          get(/databases/$(database)/documents/couples/$(coupleId)).data.get('partner1Id', '') == request.auth.uid ||
+          get(/databases/$(database)/documents/couples/$(coupleId)).data.get('partner2Id', '') == request.auth.uid
         )) ||
         (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && (
-          (getUserData().spaceIds != null && coupleId in getUserData().spaceIds) ||
-          getUserData().coupleId == coupleId
+          coupleId in getUserData().get('spaceIds', []) ||
+          getUserData().get('coupleId', '') == coupleId
         ))
       );
     }
@@ -44,10 +43,6 @@ service cloud.firestore {
     // Validações básicas de formato e tamanho de dados
     function isNonEmptyString(val, minLen, maxLen) {
       return val is string && val.size() >= minLen && val.size() <= maxLen;
-    }
-
-    function isOptionalString(val, maxLen) {
-      return val == null || (val is string && val.size() <= maxLen);
     }
 
     // =========================================================================
@@ -71,22 +66,16 @@ service cloud.firestore {
     // Armazena perfis dos usuários (nome, e-mail, foto, array de slots spaceIds)
     // =========================================================================
     match /users/{userId} {
-      // Leitura permitida para usuários autenticados (necessário para pareamento e exibição de parceiro)
+      // Leitura permitida para usuários autenticados (necessário para carregar parceiros)
       allow read: if isSignedIn();
 
       // Criação permitida apenas para o próprio usuário autenticado
       allow create: if isOwner(userId)
-        && request.resource.data.uid == userId
-        && isNonEmptyString(request.resource.data.displayName, 1, 100)
-        && isNonEmptyString(request.resource.data.email, 3, 128);
+        && isNonEmptyString(request.resource.data.get('email', ''), 3, 128);
 
-      // Atualização permitida apenas para o dono do perfil, sem permitir alterar o uid original
+      // Atualização permitida para o dono do perfil (limite de até 3 espaços no array spaceIds)
       allow update: if isOwner(userId)
-        && request.resource.data.uid == resource.data.uid
-        && (!('displayName' in request.resource.data) || isNonEmptyString(request.resource.data.displayName, 1, 100))
-        && (!('spaceIds' in request.resource.data) || request.resource.data.spaceIds.size() <= 3)
-        && (!('coupleId' in request.resource.data) || isOptionalString(request.resource.data.coupleId, 64))
-        && (!('partnerName' in request.resource.data) || isOptionalString(request.resource.data.partnerName, 100));
+        && request.resource.data.get('spaceIds', []).size() <= 3;
 
       // Exclusão da conta pelo próprio usuário
       allow delete: if isOwner(userId);
@@ -103,39 +92,35 @@ service cloud.firestore {
       // Criação: apenas o usuário autenticado como parceiro 1 ou membro inicial
       allow create: if isSignedIn()
         && (
-          request.resource.data.partner1Id == request.auth.uid ||
-          (request.resource.data.members != null && request.auth.uid in request.resource.data.members)
+          request.resource.data.get('partner1Id', '') == request.auth.uid ||
+          request.auth.uid in request.resource.data.get('members', [])
         )
-        && isNonEmptyString(request.resource.data.code, 4, 30)
-        && isNonEmptyString(request.resource.data.partner1Name, 1, 100);
+        && isNonEmptyString(request.resource.data.get('code', ''), 4, 30);
 
       // Atualização permitida sob regras estritas:
-      // Caso 1: Membro ativo atualizando informações do espaço (não pode alterar o código nem partner1Id)
-      // Caso 2: Novo parceiro conectando-se na vaga livre de partner2 (limitado a no máximo 2 membros)
+      // Caso 1: Usuário já é membro ativo ou parceiro do espaço
+      // Caso 2: Novo parceiro conectando-se na vaga livre de partner2 (máx 2 membros)
       allow update: if isSignedIn() && (
         (
-          (
-            (resource.data.members != null && request.auth.uid in resource.data.members) ||
-            resource.data.partner1Id == request.auth.uid ||
-            resource.data.partner2Id == request.auth.uid
-          ) &&
-          request.resource.data.code == resource.data.code &&
-          request.resource.data.partner1Id == resource.data.partner1Id
-        ) ||
+          request.auth.uid in resource.data.get('members', []) ||
+          resource.data.get('partner1Id', '') == request.auth.uid ||
+          resource.data.get('partner2Id', '') == request.auth.uid
+        )
+        ||
         (
-          (resource.data.partner2Id == null || resource.data.partner2Id == "") &&
-          request.resource.data.partner2Id == request.auth.uid &&
-          request.resource.data.partner1Id == resource.data.partner1Id &&
-          request.resource.data.code == resource.data.code &&
-          (request.resource.data.members == null || request.resource.data.members.size() <= 2)
+          (resource.data.get('partner2Id', '') == '' || resource.data.get('partner2Id', null) == null) &&
+          request.resource.data.get('partner2Id', '') == request.auth.uid &&
+          request.resource.data.get('partner1Id', '') == resource.data.get('partner1Id', '') &&
+          request.resource.data.get('code', '') == resource.data.get('code', '') &&
+          request.resource.data.get('members', []).size() <= 2
         )
       );
 
       // Exclusão permitida apenas se o usuário for um dos membros ou parceiros
       allow delete: if isSignedIn() && (
-        (resource.data.members != null && request.auth.uid in resource.data.members) ||
-        resource.data.partner1Id == request.auth.uid ||
-        resource.data.partner2Id == request.auth.uid
+        request.auth.uid in resource.data.get('members', []) ||
+        resource.data.get('partner1Id', '') == request.auth.uid ||
+        resource.data.get('partner2Id', '') == request.auth.uid
       );
     }
 
@@ -204,10 +189,8 @@ service cloud.firestore {
     // Cartas de perguntas e diálogos customizados do casal
     // =========================================================================
     match /questions/{questionId} {
-      // Perguntas de sistema (sem coupleId) ou perguntas customizadas do casal
       allow read: if isSignedIn() && (
-        resource.data.coupleId == null ||
-        resource.data.coupleId == "" ||
+        resource.data.get('coupleId', '') == '' ||
         isCoupleMember(resource.data.coupleId)
       );
 

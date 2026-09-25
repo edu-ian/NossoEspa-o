@@ -703,16 +703,34 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           throw new Error('Este espaço já possui 2 participantes.');
         }
 
-        const updatedMembers = Array.from(new Set([...members, user.uid, data.partner1Id]));
+        const partner1Id = data.partner1Id || members[0] || '';
+        const initialMembers = [partner1Id, ...members, user.uid].filter((m): m is string => Boolean(m));
+        const updatedMembers = Array.from(new Set(initialMembers));
+
         transaction.update(spaceDocRef, {
           partner2Id: user.uid,
-          partner2Name: user.displayName,
+          partner2Name: user.displayName || 'Parceiro(a)',
           members: updatedMembers,
         });
 
-        transaction.update(userDocRef, {
-          spaceIds: arrayUnion(coupleDoc.id),
-        });
+        const userSnap = await transaction.get(userDocRef);
+        if (userSnap.exists()) {
+          transaction.update(userDocRef, {
+            spaceIds: arrayUnion(coupleDoc.id),
+          });
+        } else {
+          transaction.set(
+            userDocRef,
+            {
+              uid: user.uid,
+              email: user.email || '',
+              displayName: user.displayName || 'Parceiro(a)',
+              spaceIds: [coupleDoc.id],
+              createdAt: new Date().toISOString(),
+            },
+            { merge: true }
+          );
+        }
       });
 
       setUser((prev) =>
@@ -731,7 +749,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (error instanceof Error && error.message.includes('participantes')) {
         throw error;
       }
-      handleFirestoreError(error, OperationType.GET, 'couples');
+      console.error('Erro ao conectar ao espaço:', error);
+      handleFirestoreError(error, OperationType.UPDATE, `couples/${cleanCode}`);
       return false;
     }
   };

@@ -3,28 +3,30 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from 'react';
-import { AuthProvider, useAuth } from './context/AuthContext';
-import { LandingPage } from './components/LandingPage';
-import { SpaceSelection } from './components/SpaceSelection';
-import { Navbar, NavTab } from './components/Navbar';
-import { CoupleHeader } from './components/CoupleHeader';
-import { EventsSection } from './components/EventsSection';
-import { MediaLibrary } from './components/MediaLibrary';
-import { QuestionsGame } from './components/QuestionsGame';
-import { MetricsSection } from './components/MetricsSection';
-import { ProfileSection } from './components/ProfileSection';
+import React, { useState } from "react";
+import { AuthProvider, useAuth } from "./context/AuthContext";
+import { LandingPage } from "./components/LandingPage";
+import { SpaceSelection } from "./components/SpaceSelection";
+import { Navbar, NavTab } from "./components/Navbar";
+import { CoupleHeader } from "./components/CoupleHeader";
+import { EventsSection } from "./components/EventsSection";
+import { MediaLibrary } from "./components/MediaLibrary";
+import { QuestionsGame } from "./components/QuestionsGame";
+import { MetricsSection } from "./components/MetricsSection";
+import { ProfileSection } from "./components/ProfileSection";
 
 function MainApp() {
   const { user, couple, loading, isDemo, logout } = useAuth();
-  const [activeTab, setActiveTab] = useState<NavTab>('events');
+  const [activeTab, setActiveTab] = useState<NavTab>("events");
 
   if (loading) {
     return (
       <div className="min-h-screen bg-[#E8d8c4] text-[#561c24] flex items-center justify-center">
         <div className="text-center space-y-3">
           <div className="w-10 h-10 mx-auto border-2 border-[#561c24] border-t-transparent animate-spin" />
-          <p className="font-serif text-lg tracking-wide">Abrindo Nosso Espaço...</p>
+          <p className="font-serif text-lg tracking-wide">
+            Abrindo Nosso Espaço...
+          </p>
         </div>
       </div>
     );
@@ -67,25 +69,25 @@ function MainApp() {
         <CoupleHeader />
 
         <main className="max-w-6xl mx-auto px-5 sm:px-8 py-8 sm:py-12 pb-28 sm:pb-16 w-full">
-          {activeTab === 'events' && <EventsSection />}
-          {activeTab === 'library' && <MediaLibrary />}
-          {activeTab === 'questions' && <QuestionsGame />}
-          {activeTab === 'metrics' && (
+          {activeTab === "events" && <EventsSection />}
+          {activeTab === "library" && <MediaLibrary />}
+          {activeTab === "questions" && <QuestionsGame />}
+          {activeTab === "metrics" && (
             <MetricsSection
               onNavigateToTab={(tab) => {
                 if (
-                  tab === 'events' ||
-                  tab === 'library' ||
-                  tab === 'questions' ||
-                  tab === 'metrics' ||
-                  tab === 'profile'
+                  tab === "events" ||
+                  tab === "library" ||
+                  tab === "questions" ||
+                  tab === "metrics" ||
+                  tab === "profile"
                 ) {
                   setActiveTab(tab);
                 }
               }}
             />
           )}
-          {activeTab === 'profile' && <ProfileSection />}
+          {activeTab === "profile" && <ProfileSection />}
         </main>
       </div>
 
