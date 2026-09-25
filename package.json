@@ -1,12 +1,15 @@
 {
-  "name": "react-example",
+  "name": "nosso-espaco",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite --port=3000 --host=0.0.0.0",
     "build": "vite build",
     "preview": "vite preview",
+    "deploy": "vite build && firebase deploy",
+    "deploy:hosting": "vite build && firebase deploy --only hosting",
+    "deploy:firestore": "firebase deploy --only firestore:rules",
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit"
   },

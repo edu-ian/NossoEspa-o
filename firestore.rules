@@ -3,21 +3,32 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // =========================================================================
+    // HELPER FUNCTIONS (Funções de Autenticação e Autorização)
+    // =========================================================================
+
+    // Verifica se a requisição é feita por um usuário autenticado no Firebase Auth
     function isSignedIn() {
-      return request.auth != null;
+      return request.auth != null && request.auth.uid != null;
     }
 
+    // Verifica se o usuário autenticado é o dono do recurso especificado pelo userId
     function isOwner(userId) {
       return isSignedIn() && request.auth.uid == userId;
     }
 
+    // Recupera o ID do casal vinculado ao perfil do usuário no documento /users/{uid}
     function getUserCoupleId() {
       return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.coupleId;
     }
 
+    // Verifica se o usuário atual é membro ativo do casal informado:
+    // 1) Via coupleId salvo no documento do usuário (rápido e otimizado para queries)
+    // 2) Ou checando diretamente se o uid do usuário é partner1Id ou partner2Id no documento do casal
     function isCoupleMember(coupleId) {
-      return isSignedIn() && (
-        (coupleId != null && getUserCoupleId() == coupleId) ||
+      return isSignedIn() && coupleId != null && coupleId != "" && (
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+         getUserCoupleId() == coupleId) ||
         (exists(/databases/$(database)/documents/couples/$(coupleId)) && (
           get(/databases/$(database)/documents/couples/$(coupleId)).data.partner1Id == request.auth.uid ||
           get(/databases/$(database)/documents/couples/$(coupleId)).data.partner2Id == request.auth.uid
@@ -25,69 +36,174 @@ service cloud.firestore {
       );
     }
 
-    // Default deny all
+    // Validações básicas de formato e tamanho de dados
+    function isNonEmptyString(val, minLen, maxLen) {
+      return val is string && val.size() >= minLen && val.size() <= maxLen;
+    }
+
+    function isOptionalString(val, maxLen) {
+      return val == null || (val is string && val.size() <= maxLen);
+    }
+
+    // =========================================================================
+    // PADRÃO DE SEGURANÇA: Bloqueia tudo por padrão
+    // =========================================================================
     match /{document=**} {
       allow read, write: if false;
     }
 
-    // Test connection doc
+    // =========================================================================
+    // COLEÇÃO: /test/connection
+    // Permite testar a conectividade no boot do app sem vazar dados sensíveis
+    // =========================================================================
     match /test/connection {
       allow read: if true;
+      allow write: if false;
     }
 
-    // Users collection: only owner can modify, authenticated users can read to pair
+    // =========================================================================
+    // COLEÇÃO: /users/{userId}
+    // Armazena perfis dos usuários (nome, e-mail, foto, vínculo de casal)
+    // =========================================================================
     match /users/{userId} {
+      // Leitura permitida para usuários autenticados (necessário para pareamento e exibição de parceiro)
       allow read: if isSignedIn();
-      allow create, update, delete: if isOwner(userId);
+
+      // Criação permitida apenas para o próprio usuário autenticado
+      allow create: if isOwner(userId)
+        && request.resource.data.uid == userId
+        && isNonEmptyString(request.resource.data.displayName, 1, 100)
+        && isNonEmptyString(request.resource.data.email, 3, 128);
+
+      // Atualização permitida apenas para o dono do perfil, sem permitir alterar o uid original
+      allow update: if isOwner(userId)
+        && request.resource.data.uid == resource.data.uid
+        && (!('displayName' in request.resource.data) || isNonEmptyString(request.resource.data.displayName, 1, 100))
+        && (!('coupleId' in request.resource.data) || isOptionalString(request.resource.data.coupleId, 64))
+        && (!('partnerName' in request.resource.data) || isOptionalString(request.resource.data.partnerName, 100));
+
+      // Exclusão da conta pelo próprio usuário
+      allow delete: if isOwner(userId);
     }
 
-    // Couples collection: authenticated can query codes to join; only partners can update/delete
+    // =========================================================================
+    // COLEÇÃO: /couples/{coupleId}
+    // Espaço privado e compartilhado do casal
+    // =========================================================================
     match /couples/{coupleId} {
+      // Leitura permitida para autenticados (permite consultar códigos NOSSO-XXX ao parear)
       allow read: if isSignedIn();
-      allow create: if isSignedIn() && request.resource.data.partner1Id == request.auth.uid;
+
+      // Criação: apenas o usuário autenticado como parceiro 1
+      allow create: if isSignedIn()
+        && request.resource.data.partner1Id == request.auth.uid
+        && isNonEmptyString(request.resource.data.code, 4, 30)
+        && isNonEmptyString(request.resource.data.partner1Name, 1, 100);
+
+      // Atualização permitida se:
+      // 1) O usuário já for membro do casal (atualizar nome do espaço, nomes, datas)
+      // 2) O usuário estiver se conectando via código na vaga livre de partner2
       allow update: if isSignedIn() && (
-        resource.data.partner1Id == request.auth.uid ||
-        resource.data.partner2Id == request.auth.uid ||
-        resource.data.partner2Id == null ||
-        resource.data.partner2Id == "" ||
-        request.resource.data.partner2Id == request.auth.uid
+        (resource.data.partner1Id == request.auth.uid || resource.data.partner2Id == request.auth.uid) ||
+        (
+          (resource.data.partner2Id == null || resource.data.partner2Id == "") &&
+          request.resource.data.partner2Id == request.auth.uid &&
+          request.resource.data.partner1Id == resource.data.partner1Id
+        )
       );
+
+      // Exclusão permitida apenas se o usuário for um dos parceiros
       allow delete: if isSignedIn() && (
         resource.data.partner1Id == request.auth.uid ||
         resource.data.partner2Id == request.auth.uid
       );
     }
 
-    // Events collection: only partner members can read and manage their events
+    // =========================================================================
+    // COLEÇÃO: /events/{eventId}
+    // Eventos, shows, viagens e aniversários da timeline do casal
+    // =========================================================================
     match /events/{eventId} {
-      allow read: if isSignedIn() && (resource.data.coupleId == null || isCoupleMember(resource.data.coupleId));
-      allow create: if isSignedIn() && request.resource.data.createdBy == request.auth.uid && isCoupleMember(request.resource.data.coupleId);
-      allow update: if isSignedIn() && (resource.data.createdBy == request.auth.uid || isCoupleMember(resource.data.coupleId));
-      allow delete: if isSignedIn() && (resource.data.createdBy == request.auth.uid || isCoupleMember(resource.data.coupleId));
-    }
+      allow read: if isSignedIn() && isCoupleMember(resource.data.coupleId);
 
-    // Media Items collection (Filmes, Séries, Livros, Lugares, Listas temáticas)
-    match /media_items/{mediaItemId} {
-      allow read: if isSignedIn() && (resource.data.coupleId == null || isCoupleMember(resource.data.coupleId));
-      allow create: if isSignedIn() && request.resource.data.createdBy == request.auth.uid && isCoupleMember(request.resource.data.coupleId);
-      allow update: if isSignedIn() && isCoupleMember(resource.data.coupleId);
-      allow delete: if isSignedIn() && (resource.data.createdBy == request.auth.uid || isCoupleMember(resource.data.coupleId));
-    }
+      allow create: if isSignedIn()
+        && isCoupleMember(request.resource.data.coupleId)
+        && request.resource.data.createdBy == request.auth.uid
+        && isNonEmptyString(request.resource.data.title, 1, 150)
+        && isNonEmptyString(request.resource.data.category, 1, 50)
+        && isNonEmptyString(request.resource.data.dateTime, 1, 64);
 
-    // Custom lists / thematic collections
-    match /custom_lists/{listId} {
-      allow read: if isSignedIn() && (resource.data.coupleId == null || isCoupleMember(resource.data.coupleId));
-      allow create: if isSignedIn() && isCoupleMember(request.resource.data.coupleId);
-      allow update: if isSignedIn() && isCoupleMember(resource.data.coupleId);
+      allow update: if isSignedIn()
+        && isCoupleMember(resource.data.coupleId)
+        && request.resource.data.coupleId == resource.data.coupleId;
+
       allow delete: if isSignedIn() && isCoupleMember(resource.data.coupleId);
     }
 
-    // Questions collection
+    // =========================================================================
+    // COLEÇÃO: /media_items/{mediaItemId}
+    // Filmes, séries, livros, lugares e itens de listas personalizadas com notas
+    // =========================================================================
+    match /media_items/{mediaItemId} {
+      allow read: if isSignedIn() && isCoupleMember(resource.data.coupleId);
+
+      allow create: if isSignedIn()
+        && isCoupleMember(request.resource.data.coupleId)
+        && request.resource.data.createdBy == request.auth.uid
+        && isNonEmptyString(request.resource.data.title, 1, 150)
+        && isNonEmptyString(request.resource.data.type, 1, 40)
+        && isNonEmptyString(request.resource.data.status, 1, 40);
+
+      allow update: if isSignedIn()
+        && isCoupleMember(resource.data.coupleId)
+        && request.resource.data.coupleId == resource.data.coupleId;
+
+      allow delete: if isSignedIn() && isCoupleMember(resource.data.coupleId);
+    }
+
+    // =========================================================================
+    // COLEÇÃO: /custom_lists/{listId}
+    // Temas e categorias customizadas criadas pelo casal
+    // =========================================================================
+    match /custom_lists/{listId} {
+      allow read: if isSignedIn() && isCoupleMember(resource.data.coupleId);
+
+      allow create: if isSignedIn()
+        && isCoupleMember(request.resource.data.coupleId)
+        && isNonEmptyString(request.resource.data.name, 1, 100);
+
+      allow update: if isSignedIn()
+        && isCoupleMember(resource.data.coupleId)
+        && request.resource.data.coupleId == resource.data.coupleId;
+
+      allow delete: if isSignedIn() && isCoupleMember(resource.data.coupleId);
+    }
+
+    // =========================================================================
+    // COLEÇÃO: /questions/{questionId}
+    // Cartas de perguntas e diálogos customizados do casal
+    // =========================================================================
     match /questions/{questionId} {
-      allow read: if isSignedIn();
-      allow create: if isSignedIn() && (request.resource.data.coupleId == null || isCoupleMember(request.resource.data.coupleId));
-      allow update: if isSignedIn() && (resource.data.coupleId == null || isCoupleMember(resource.data.coupleId));
-      allow delete: if isSignedIn() && resource.data.isCustom == true && (resource.data.createdBy == request.auth.uid || isCoupleMember(resource.data.coupleId));
+      // Perguntas de sistema (sem coupleId) ou perguntas customizadas do casal
+      allow read: if isSignedIn() && (
+        resource.data.coupleId == null ||
+        resource.data.coupleId == "" ||
+        isCoupleMember(resource.data.coupleId)
+      );
+
+      allow create: if isSignedIn()
+        && isCoupleMember(request.resource.data.coupleId)
+        && request.resource.data.isCustom == true
+        && isNonEmptyString(request.resource.data.text, 1, 500)
+        && isNonEmptyString(request.resource.data.category, 1, 60);
+
+      allow update: if isSignedIn()
+        && isCoupleMember(resource.data.coupleId)
+        && request.resource.data.coupleId == resource.data.coupleId;
+
+      allow delete: if isSignedIn()
+        && resource.data.isCustom == true
+        && isCoupleMember(resource.data.coupleId);
     }
   }
 }

@@ -15,7 +15,8 @@ import { MetricsSection } from './components/MetricsSection';
 import { ProfileSection } from './components/ProfileSection';
 
 function MainApp() {
-  const { user, couple, loading, createCoupleSpace, joinCoupleSpace, startDemoMode } = useAuth();
+  const { user, couple, loading, createCoupleSpace, joinCoupleSpace, startDemoMode, logout } =
+    useAuth();
   const [activeTab, setActiveTab] = useState<NavTab>('events');
 
   // Couple onboarding states if user signed in without couple
@@ -137,13 +138,21 @@ function MainApp() {
               </button>
             </form>
 
-            <div className="text-center pt-2">
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2 text-xs">
               <button
                 type="button"
                 onClick={() => startDemoMode()}
-                className="text-xs text-[#6d2932] underline hover:text-[#561c24]"
+                className="text-[#6d2932] underline hover:text-[#561c24] cursor-pointer"
               >
-                Ou explore a demonstração instantânea com dados de teste
+                Ou explore o modo demonstração
+              </button>
+              <span className="hidden sm:inline text-[#c7b7a3]">•</span>
+              <button
+                type="button"
+                onClick={() => logout()}
+                className="text-[#6d2932] hover:text-[#561c24] hover:underline cursor-pointer"
+              >
+                Sair da conta ({user.email || user.displayName})
               </button>
             </div>
           </div>

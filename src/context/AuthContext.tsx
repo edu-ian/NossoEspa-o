@@ -8,6 +8,7 @@ import {
   signOut as fbSignOut,
   updateProfile,
   deleteUser,
+  sendPasswordResetEmail,
 } from 'firebase/auth';
 import {
   doc,
@@ -34,6 +35,7 @@ interface AuthContextType {
   loginWithGoogle: () => Promise<void>;
   loginWithEmail: (email: string, pass: string) => Promise<void>;
   registerWithEmail: (email: string, pass: string, name: string) => Promise<void>;
+  resetPassword: (email: string) => Promise<void>;
   logout: () => Promise<void>;
   updateProfileName: (newName: string) => Promise<void>;
   deleteCoupleSpace: () => Promise<void>;
@@ -166,22 +168,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const loginWithEmail = async (email: string, pass: string) => {
-    await signInWithEmailAndPassword(auth, email, pass);
+    const cleanEmail = email.trim().toLowerCase();
+    await signInWithEmailAndPassword(auth, cleanEmail, pass);
   };
 
   const registerWithEmail = async (email: string, pass: string, name: string) => {
-    const cred = await createUserWithEmailAndPassword(auth, email, pass);
+    const cleanEmail = email.trim().toLowerCase();
+    const cleanName = name.trim();
+    const cred = await createUserWithEmailAndPassword(auth, cleanEmail, pass);
     if (auth.currentUser) {
-      await updateProfile(auth.currentUser, { displayName: name });
+      await updateProfile(auth.currentUser, { displayName: cleanName });
     }
     const newProfile: UserProfile = {
       uid: cred.user.uid,
-      email: cred.user.email || email,
-      displayName: name || 'Parceiro(a)',
+      email: cleanEmail,
+      displayName: cleanName || 'Parceiro(a)',
       createdAt: new Date().toISOString(),
     };
     await setDoc(doc(db, 'users', cred.user.uid), newProfile);
     setUser(newProfile);
+  };
+
+  const resetPassword = async (email: string) => {
+    const cleanEmail = email.trim().toLowerCase();
+    if (!cleanEmail) {
+      throw new Error('Por favor, informe seu e-mail para recuperar a senha.');
+    }
+    await sendPasswordResetEmail(auth, cleanEmail);
   };
 
   const logout = async () => {
@@ -506,6 +519,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         loginWithGoogle,
         loginWithEmail,
         registerWithEmail,
+        resetPassword,
         logout,
         updateProfileName,
         deleteCoupleSpace,

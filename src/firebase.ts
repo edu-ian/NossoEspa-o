@@ -1,14 +1,38 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider } from 'firebase/auth';
 import { getFirestore, doc, getDocFromServer } from 'firebase/firestore';
-import firebaseConfig from '../firebase-applet-config.json';
+
+const firebaseConfig = {
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID,
+};
+
+// Alert in console if variables are missing
+if (!firebaseConfig.apiKey || !firebaseConfig.projectId) {
+  console.warn(
+    '[Firebase] Variáveis de ambiente não encontradas. Certifique-se de preencher o arquivo .env conforme o .env.example.'
+  );
+}
 
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 
-/* CRITICAL: The app will break without specifying the firestoreDatabaseId from config */
-export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
+// Use specified firestoreDatabaseId if configured and non-default, otherwise default database
+const databaseId = import.meta.env.VITE_FIREBASE_DATABASE_ID;
+export const db = databaseId && databaseId !== '(default)'
+  ? getFirestore(app, databaseId)
+  : getFirestore(app);
+
 export const auth = getAuth(app);
+
 export const googleProvider = new GoogleAuthProvider();
+googleProvider.setCustomParameters({
+  prompt: 'select_account',
+});
 
 export enum OperationType {
   CREATE = 'create',
@@ -57,7 +81,7 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
   throw new Error(JSON.stringify(errInfo));
 }
 
-// Validation connection test required by skill
+// Validation connection test
 export async function testConnection(): Promise<boolean> {
   try {
     await getDocFromServer(doc(db, 'test', 'connection'));

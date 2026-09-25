@@ -3,12 +3,20 @@ import { useAuth } from '../context/AuthContext';
 import { ModalDrawer } from './ModalDrawer';
 
 export const LandingPage: React.FC = () => {
-  const { loginWithGoogle, loginWithEmail, registerWithEmail, joinCoupleSpace, startDemoMode } =
-    useAuth();
+  const {
+    loginWithGoogle,
+    loginWithEmail,
+    registerWithEmail,
+    resetPassword,
+    joinCoupleSpace,
+    startDemoMode,
+  } = useAuth();
 
   const [authModalOpen, setAuthModalOpen] = useState<boolean>(false);
   const [authMode, setAuthMode] = useState<'create' | 'join'>('create');
   const [isRegister, setIsRegister] = useState<boolean>(false);
+  const [isForgotPassword, setIsForgotPassword] = useState<boolean>(false);
+  const [forgotSuccess, setForgotSuccess] = useState<string>('');
 
   // Form states
   const [email, setEmail] = useState<string>('');
@@ -18,15 +26,28 @@ export const LandingPage: React.FC = () => {
   const [formError, setFormError] = useState<string>('');
   const [loadingAction, setLoadingAction] = useState<boolean>(false);
 
+  const openLoginFlow = () => {
+    setAuthMode('create');
+    setIsRegister(false);
+    setIsForgotPassword(false);
+    setForgotSuccess('');
+    setFormError('');
+    setAuthModalOpen(true);
+  };
+
   const openCreateFlow = () => {
     setAuthMode('create');
     setIsRegister(true);
+    setIsForgotPassword(false);
+    setForgotSuccess('');
     setFormError('');
     setAuthModalOpen(true);
   };
 
   const openJoinFlow = () => {
     setAuthMode('join');
+    setIsForgotPassword(false);
+    setForgotSuccess('');
     setFormError('');
     setAuthModalOpen(true);
   };
@@ -39,7 +60,37 @@ export const LandingPage: React.FC = () => {
       setAuthModalOpen(false);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Falha ao autenticar com Google';
-      setFormError(msg.includes('popup-closed') ? 'Janela fechada antes da conclusão.' : msg);
+      if (msg.includes('popup-closed') || msg.includes('cancelled-popup-request')) {
+        setFormError('Janela de login fechada antes da conclusão.');
+      } else if (msg.includes('network-request-failed')) {
+        setFormError('Falha de conexão com os servidores do Google.');
+      } else if (msg.includes('unauthorized-domain')) {
+        setFormError('Domínio não autorizado no Firebase Console. Verifique os domínios autorizados na aba Authentication.');
+      } else {
+        setFormError(msg);
+      }
+    } finally {
+      setLoadingAction(false);
+    }
+  };
+
+  const handleResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setFormError('');
+    setForgotSuccess('');
+    setLoadingAction(true);
+    try {
+      await resetPassword(email);
+      setForgotSuccess('E-mail de recuperação enviado com sucesso! Verifique sua caixa de entrada.');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Falha ao redefinir senha';
+      if (msg.includes('user-not-found')) {
+        setFormError('Nenhuma conta encontrada com este e-mail.');
+      } else if (msg.includes('invalid-email')) {
+        setFormError('Por favor, informe um e-mail válido.');
+      } else {
+        setFormError(msg);
+      }
     } finally {
       setLoadingAction(false);
     }
@@ -99,6 +150,12 @@ export const LandingPage: React.FC = () => {
         setFormError('E-mail ou senha incorretos.');
       } else if (msg.includes('email-already-in-use')) {
         setFormError('Este e-mail já está cadastrado. Alterne para entrar.');
+      } else if (msg.includes('weak-password')) {
+        setFormError('A senha deve ter pelo menos 6 caracteres.');
+      } else if (msg.includes('invalid-email')) {
+        setFormError('Por favor, informe um e-mail válido.');
+      } else if (msg.includes('network-request-failed')) {
+        setFormError('Falha de conexão. Verifique sua internet.');
       } else {
         setFormError(msg);
       }
@@ -130,8 +187,15 @@ export const LandingPage: React.FC = () => {
           <div className="flex items-center gap-3">
             <button
               type="button"
+              onClick={openLoginFlow}
+              className="text-xs uppercase tracking-wider text-[#E8d8c4] hover:text-white font-semibold transition-colors px-3 py-2 cursor-pointer"
+            >
+              Entrar
+            </button>
+            <button
+              type="button"
               onClick={() => startDemoMode()}
-              className="text-xs uppercase tracking-wider text-[#561c24] font-bold transition-all px-4 py-2 bg-[#E8d8c4] hover:bg-white border border-[#E8d8c4] shadow-xs"
+              className="text-xs uppercase tracking-wider text-[#561c24] font-bold transition-all px-4 py-2 bg-[#E8d8c4] hover:bg-white border border-[#E8d8c4] shadow-xs cursor-pointer"
             >
               Explorar Demonstração
             </button>
@@ -329,10 +393,22 @@ export const LandingPage: React.FC = () => {
       <ModalDrawer
         isOpen={authModalOpen}
         onClose={() => setAuthModalOpen(false)}
-        title={authMode === 'create' ? (isRegister ? 'Criar Nosso Espaço' : 'Acessar Espaço') : 'Entrar com Código'}
+        title={
+          isForgotPassword
+            ? 'Recuperar Senha'
+            : authMode === 'create'
+            ? isRegister
+              ? 'Criar Nosso Espaço'
+              : 'Acessar Espaço'
+            : 'Entrar com Código'
+        }
         subtitle={
-          authMode === 'create'
-            ? 'Crie seu santuário compartilhado e convide sua pessoa especial.'
+          isForgotPassword
+            ? 'Informe seu e-mail para receber as instruções de recuperação.'
+            : authMode === 'create'
+            ? isRegister
+              ? 'Crie sua conta para começar seu espaço compartilhado.'
+              : 'Entre com sua conta para continuar para seu espaço.'
             : 'Digite o código de convite que seu parceiro(a) gerou.'
         }
       >
@@ -343,129 +419,201 @@ export const LandingPage: React.FC = () => {
             </div>
           )}
 
-          {/* Social Google Login Button */}
-          <button
-            type="button"
-            onClick={handleGoogleAuth}
-            disabled={loadingAction}
-            className="w-full py-3 px-4 bg-[#f4eae0] border border-[#561c24] text-[#561c24] text-xs font-semibold uppercase tracking-wider hover:bg-[#E8d8c4] transition-colors flex items-center justify-center gap-2 cursor-pointer"
-          >
-            <span>Continuar com Google</span>
-          </button>
+          {forgotSuccess && (
+            <div className="p-3 bg-emerald-500/10 border border-emerald-600 text-xs text-emerald-900 font-medium">
+              {forgotSuccess}
+            </div>
+          )}
 
-          <div className="flex items-center gap-3 my-2">
-            <div className="flex-1 h-px bg-[#c7b7a3]" />
-            <span className="text-[11px] uppercase tracking-wider text-[#6d2932]">ou com e-mail</span>
-            <div className="flex-1 h-px bg-[#c7b7a3]" />
-          </div>
-
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {authMode === 'join' && (
+          {isForgotPassword ? (
+            <form onSubmit={handleResetPassword} className="space-y-4">
               <div>
                 <label className="block text-xs uppercase tracking-wider text-[#6d2932] font-semibold mb-1">
-                  Código de Convite do Espaço
+                  E-mail Cadastrado
                 </label>
                 <input
-                  type="text"
+                  type="email"
                   required
-                  value={inviteCode}
-                  onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
-                  placeholder="Código do seu parceiro(a)"
-                  className="w-full px-3.5 py-2.5 bg-[#E8d8c4] border border-[#c7b7a3] focus:border-[#561c24] text-[#561c24] text-center font-mono text-base font-bold tracking-widest outline-none"
-                />
-              </div>
-            )}
-
-            {isRegister && (
-              <div>
-                <label className="block text-xs uppercase tracking-wider text-[#6d2932] font-semibold mb-1">
-                  Seu Nome
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="Como seu parceiro te chama"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="seu@email.com"
                   className="w-full px-3.5 py-2.5 bg-[#E8d8c4] border border-[#c7b7a3] focus:border-[#561c24] text-[#561c24] text-sm outline-none"
                 />
               </div>
-            )}
 
-            <div>
-              <label className="block text-xs uppercase tracking-wider text-[#6d2932] font-semibold mb-1">
-                E-mail
-              </label>
-              <input
-                type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="seu@email.com"
-                className="w-full px-3.5 py-2.5 bg-[#E8d8c4] border border-[#c7b7a3] focus:border-[#561c24] text-[#561c24] text-sm outline-none"
-              />
-            </div>
+              <button
+                type="submit"
+                disabled={loadingAction}
+                className="w-full py-3 bg-[#561c24] text-[#E8d8c4] text-xs font-semibold uppercase tracking-wider hover:bg-[#6d2932] transition-colors cursor-pointer"
+              >
+                {loadingAction ? 'Enviando...' : 'Enviar Link de Redefinição'}
+              </button>
 
-            <div>
-              <label className="block text-xs uppercase tracking-wider text-[#6d2932] font-semibold mb-1">
-                Senha
-              </label>
-              <input
-                type="password"
-                required
-                minLength={6}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Mínimo 6 caracteres"
-                className="w-full px-3.5 py-2.5 bg-[#E8d8c4] border border-[#c7b7a3] focus:border-[#561c24] text-[#561c24] text-sm outline-none"
-              />
-            </div>
-
-            <button
-              type="submit"
-              disabled={loadingAction}
-              className="w-full py-3 bg-[#561c24] text-[#E8d8c4] text-xs font-semibold uppercase tracking-wider hover:bg-[#6d2932] transition-colors cursor-pointer"
-            >
-              {loadingAction
-                ? 'Processando...'
-                : authMode === 'create'
-                ? isRegister
-                  ? 'Criar Espaço Compartilhado'
-                  : 'Entrar no Espaço'
-                : 'Conectar com Código'}
-            </button>
-          </form>
-
-          <div className="flex items-center justify-between pt-2 border-t border-[#c7b7a3] text-xs text-[#6d2932]">
-            {authMode === 'create' ? (
+              <div className="text-center pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsForgotPassword(false);
+                    setFormError('');
+                    setForgotSuccess('');
+                  }}
+                  className="text-xs text-[#6d2932] underline hover:text-[#561c24] cursor-pointer"
+                >
+                  ← Voltar para o Login
+                </button>
+              </div>
+            </form>
+          ) : (
+            <>
+              {/* Social Google Login Button */}
               <button
                 type="button"
-                onClick={() => setIsRegister((prev) => !prev)}
-                className="underline hover:text-[#561c24] cursor-pointer"
+                onClick={handleGoogleAuth}
+                disabled={loadingAction}
+                className="w-full py-3 px-4 bg-[#f4eae0] border border-[#561c24] text-[#561c24] text-xs font-semibold uppercase tracking-wider hover:bg-[#E8d8c4] transition-colors flex items-center justify-center gap-2 cursor-pointer"
               >
-                {isRegister ? 'Já tem conta? Entrar' : 'Não tem conta? Cadastrar'}
+                <span>Continuar com Google</span>
               </button>
-            ) : (
-              <button
-                type="button"
-                onClick={() => setAuthMode('create')}
-                className="underline hover:text-[#561c24] cursor-pointer"
-              >
-                Criar um novo espaço
-              </button>
-            )}
 
-            <button
-              type="button"
-              onClick={() => {
-                setAuthModalOpen(false);
-                startDemoMode(inviteCode.trim() || undefined);
-              }}
-              className="font-medium text-[#561c24] hover:underline cursor-pointer"
-            >
-              Testar em modo demo →
-            </button>
-          </div>
+              <div className="flex items-center gap-3 my-2">
+                <div className="flex-1 h-px bg-[#c7b7a3]" />
+                <span className="text-[11px] uppercase tracking-wider text-[#6d2932]">ou com e-mail</span>
+                <div className="flex-1 h-px bg-[#c7b7a3]" />
+              </div>
+
+              <form onSubmit={handleSubmit} className="space-y-4">
+                {authMode === 'join' && (
+                  <div>
+                    <label className="block text-xs uppercase tracking-wider text-[#6d2932] font-semibold mb-1">
+                      Código de Convite do Espaço
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={inviteCode}
+                      onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
+                      placeholder="Código do seu parceiro(a)"
+                      className="w-full px-3.5 py-2.5 bg-[#E8d8c4] border border-[#c7b7a3] focus:border-[#561c24] text-[#561c24] text-center font-mono text-base font-bold tracking-widest outline-none"
+                    />
+                  </div>
+                )}
+
+                {isRegister && (
+                  <div>
+                    <label className="block text-xs uppercase tracking-wider text-[#6d2932] font-semibold mb-1">
+                      Seu Nome
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      placeholder="Como seu parceiro te chama"
+                      className="w-full px-3.5 py-2.5 bg-[#E8d8c4] border border-[#c7b7a3] focus:border-[#561c24] text-[#561c24] text-sm outline-none"
+                    />
+                  </div>
+                )}
+
+                <div>
+                  <label className="block text-xs uppercase tracking-wider text-[#6d2932] font-semibold mb-1">
+                    E-mail
+                  </label>
+                  <input
+                    type="email"
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="seu@email.com"
+                    className="w-full px-3.5 py-2.5 bg-[#E8d8c4] border border-[#c7b7a3] focus:border-[#561c24] text-[#561c24] text-sm outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs uppercase tracking-wider text-[#6d2932] font-semibold mb-1">
+                    Senha
+                  </label>
+                  <input
+                    type="password"
+                    required
+                    minLength={6}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Mínimo 6 caracteres"
+                    className="w-full px-3.5 py-2.5 bg-[#E8d8c4] border border-[#c7b7a3] focus:border-[#561c24] text-[#561c24] text-sm outline-none"
+                  />
+                </div>
+
+                {!isRegister && authMode === 'create' && (
+                  <div className="text-right -mt-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsForgotPassword(true);
+                        setFormError('');
+                        setForgotSuccess('');
+                      }}
+                      className="text-[11px] text-[#6d2932] hover:underline cursor-pointer"
+                    >
+                      Esqueceu a senha?
+                    </button>
+                  </div>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={loadingAction}
+                  className="w-full py-3 bg-[#561c24] text-[#E8d8c4] text-xs font-semibold uppercase tracking-wider hover:bg-[#6d2932] transition-colors cursor-pointer"
+                >
+                  {loadingAction
+                    ? 'Processando...'
+                    : authMode === 'create'
+                    ? isRegister
+                      ? 'Criar Espaço Compartilhado'
+                      : 'Entrar no Espaço'
+                    : 'Conectar com Código'}
+                </button>
+              </form>
+
+              <div className="flex items-center justify-between pt-2 border-t border-[#c7b7a3] text-xs text-[#6d2932]">
+                {authMode === 'create' ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsRegister((prev) => !prev);
+                      setFormError('');
+                      setForgotSuccess('');
+                    }}
+                    className="underline hover:text-[#561c24] cursor-pointer"
+                  >
+                    {isRegister ? 'Já tem conta? Entrar' : 'Não tem conta? Cadastrar'}
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAuthMode('create');
+                      setFormError('');
+                      setForgotSuccess('');
+                    }}
+                    className="underline hover:text-[#561c24] cursor-pointer"
+                  >
+                    Criar um novo espaço
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAuthModalOpen(false);
+                    startDemoMode(inviteCode.trim() || undefined);
+                  }}
+                  className="font-medium text-[#561c24] hover:underline cursor-pointer"
+                >
+                  Testar em modo demo →
+                </button>
+              </div>
+            </>
+          )}
         </div>
       </ModalDrawer>
     </div>
