@@ -13,6 +13,7 @@ export const ProfileSection: React.FC = () => {
     logout,
     isDemo,
     currentUserName,
+    clearActiveSpace,
   } = useAuth();
 
   const [newName, setNewName] = useState<string>(user?.displayName || currentUserName || '');
@@ -238,13 +239,21 @@ export const ProfileSection: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="pt-2">
+                <div className="pt-2 flex flex-wrap items-center gap-3">
                   <button
                     type="submit"
                     disabled={isUpdatingSpace}
-                    className="px-5 py-2.5 bg-[#561c24] text-[#E8d8c4] text-xs font-semibold uppercase tracking-wider hover:bg-[#6d2932] transition-colors"
+                    className="px-5 py-2.5 bg-[#561c24] text-[#E8d8c4] text-xs font-semibold uppercase tracking-wider hover:bg-[#6d2932] transition-colors cursor-pointer"
                   >
                     {isUpdatingSpace ? 'Salvando...' : 'Salvar Título do Espaço'}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={clearActiveSpace}
+                    className="px-4 py-2.5 bg-[#561c24] hover:bg-[#6d2932] text-[#E8d8c4] hover:text-white border border-[#561c24] text-xs uppercase tracking-widest font-medium transition-colors cursor-pointer shadow-xs"
+                  >
+                    ⇄ Ver Meus Slots / Trocar Espaço
                   </button>
                 </div>
               </form>
@@ -356,9 +365,9 @@ export const ProfileSection: React.FC = () => {
           <button
             type="button"
             onClick={logout}
-            className="px-4 py-2.5 bg-[#E8d8c4] border border-[#c7b7a3] text-[#6d2932] hover:text-[#561c24] text-xs font-semibold uppercase tracking-wider transition-colors text-center sm:ml-auto"
+            className="px-4 py-2.5 bg-[#E8d8c4] border border-[#c7b7a3] text-[#6d2932] hover:text-[#561c24] text-xs font-semibold uppercase tracking-wider transition-colors text-center sm:ml-auto cursor-pointer"
           >
-            Encerrar Sessão
+            Sair da conta
           </button>
         </div>
       </section>

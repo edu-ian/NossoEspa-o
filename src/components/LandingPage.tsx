@@ -10,10 +10,11 @@ export const LandingPage: React.FC = () => {
     resetPassword,
     joinCoupleSpace,
     startDemoMode,
+    clearActiveSpace,
   } = useAuth();
 
   const [authModalOpen, setAuthModalOpen] = useState<boolean>(false);
-  const [authMode, setAuthMode] = useState<'create' | 'join'>('create');
+  const [authMode, setAuthMode] = useState<'create' | 'join' | 'login'>('create');
   const [isRegister, setIsRegister] = useState<boolean>(false);
   const [isForgotPassword, setIsForgotPassword] = useState<boolean>(false);
   const [forgotSuccess, setForgotSuccess] = useState<string>('');
@@ -27,7 +28,8 @@ export const LandingPage: React.FC = () => {
   const [loadingAction, setLoadingAction] = useState<boolean>(false);
 
   const openLoginFlow = () => {
-    setAuthMode('create');
+    clearActiveSpace();
+    setAuthMode('login');
     setIsRegister(false);
     setIsForgotPassword(false);
     setForgotSuccess('');
@@ -36,6 +38,7 @@ export const LandingPage: React.FC = () => {
   };
 
   const openCreateFlow = () => {
+    clearActiveSpace();
     setAuthMode('create');
     setIsRegister(true);
     setIsForgotPassword(false);
@@ -45,6 +48,7 @@ export const LandingPage: React.FC = () => {
   };
 
   const openJoinFlow = () => {
+    clearActiveSpace();
     setAuthMode('join');
     setIsForgotPassword(false);
     setForgotSuccess('');
@@ -56,6 +60,7 @@ export const LandingPage: React.FC = () => {
     setLoadingAction(true);
     setFormError('');
     try {
+      clearActiveSpace();
       await loginWithGoogle();
       setAuthModalOpen(false);
     } catch (err: unknown) {
@@ -102,6 +107,18 @@ export const LandingPage: React.FC = () => {
     setLoadingAction(true);
 
     try {
+      if (authMode === 'login') {
+        if (!email.trim() || !password.trim()) {
+          setFormError('Por favor, informe seu e-mail e senha.');
+          setLoadingAction(false);
+          return;
+        }
+        clearActiveSpace();
+        await loginWithEmail(email, password);
+        setAuthModalOpen(false);
+        return;
+      }
+
       if (authMode === 'join') {
         if (!inviteCode.trim()) {
           setFormError('Por favor, informe o código de convite (ex: NOSSO-892).');
@@ -184,18 +201,18 @@ export const LandingPage: React.FC = () => {
             </span>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5 sm:gap-3">
             <button
               type="button"
               onClick={openLoginFlow}
-              className="text-xs uppercase tracking-wider text-[#E8d8c4] hover:text-white font-semibold transition-colors px-3 py-2 cursor-pointer"
+              className="text-xs uppercase tracking-widest text-[#E8d8c4] hover:text-white font-medium transition-colors px-3 py-1.5 sm:px-4 sm:py-2 border border-[#c7b7a3]/50 hover:border-white cursor-pointer"
             >
-              Entrar
+              Entrar no meu espaço
             </button>
             <button
               type="button"
-              onClick={() => startDemoMode()}
-              className="text-xs uppercase tracking-wider text-[#561c24] font-bold transition-all px-4 py-2 bg-[#E8d8c4] hover:bg-white border border-[#E8d8c4] shadow-xs cursor-pointer"
+              onClick={() => startDemoMode(undefined, true)}
+              className="text-xs uppercase tracking-wider text-[#561c24] font-bold transition-all px-3 py-1.5 sm:px-4 sm:py-2 bg-[#E8d8c4] hover:bg-white border border-[#E8d8c4] shadow-xs cursor-pointer"
             >
               Explorar Demonstração
             </button>
@@ -219,30 +236,37 @@ export const LandingPage: React.FC = () => {
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mt-10">
             <button
               type="button"
-              onClick={openCreateFlow}
-              className="w-full sm:w-auto px-9 py-4 bg-[#E8d8c4] text-[#561c24] font-bold tracking-wider text-xs uppercase hover:bg-white transition-all shadow-[0_10px_25px_rgba(0,0,0,0.25)] cursor-pointer"
+              onClick={openLoginFlow}
+              className="w-full sm:w-auto px-9 py-4 bg-[#E8d8c4] text-[#561c24] font-medium tracking-widest text-xs uppercase hover:bg-white transition-all shadow-[0_10px_25px_rgba(0,0,0,0.25)] cursor-pointer"
             >
-              Criar Nosso Espaço
+              Entrar no meu espaço
+            </button>
+            <button
+              type="button"
+              onClick={openCreateFlow}
+              className="w-full sm:w-auto px-8 py-4 bg-transparent text-[#E8d8c4] border border-[#c7b7a3]/60 hover:border-white hover:text-white font-medium tracking-widest text-xs uppercase transition-colors cursor-pointer"
+            >
+              Criar Novo Espaço
             </button>
             <button
               type="button"
               onClick={openJoinFlow}
-              className="w-full sm:w-auto px-8 py-4 bg-transparent text-[#E8d8c4] border border-[#c7b7a3]/60 hover:border-white hover:text-white font-semibold tracking-wider text-xs uppercase transition-colors cursor-pointer"
+              className="w-full sm:w-auto px-7 py-4 bg-transparent text-[#c7b7a3] hover:text-white font-medium tracking-widest text-xs uppercase transition-colors cursor-pointer"
             >
               Já tenho um código
             </button>
           </div>
 
-          {/* Quick Assurance Strip (Without dividing border line) */}
+          {/* Quick Assurance Strip */}
           <div className="mt-12 flex flex-wrap items-center justify-center gap-6 sm:gap-10 text-xs font-mono text-[#c7b7a3]">
             <span className="flex items-center gap-1.5">
               <span className="text-amber-400">✓</span> 100% Privado • Apenas Vocês Dois
             </span>
             <span className="flex items-center gap-1.5">
-              <span className="text-amber-400">✓</span> Sincronizado em Tempo Real
+              <span className="text-amber-400">✓</span> Até 3 Espaços Compartilhados
             </span>
             <span className="flex items-center gap-1.5">
-              <span className="text-amber-400">✓</span> Zero Anúncios & Sem Redes Sociais
+              <span className="text-amber-400">✓</span> Sincronizado em Tempo Real
             </span>
           </div>
         </div>
@@ -252,7 +276,6 @@ export const LandingPage: React.FC = () => {
       {/* SEGUNDA PARTE DA HOME: EXPLICAÇÃO DETALHADA DE TODAS AS FUNCIONALIDADES */}
       {/* ========================================================================= */}
       <main className="max-w-6xl mx-auto px-6 sm:px-12 py-16 sm:py-24 w-full flex-1 space-y-16">
-        {/* Intro to Features */}
         <div className="text-center max-w-3xl mx-auto">
           <span className="text-[11px] font-mono uppercase tracking-widest text-[#6d2932] block mb-2 font-semibold">
             Arquitetura de Intimidade
@@ -265,116 +288,63 @@ export const LandingPage: React.FC = () => {
           </p>
         </div>
 
-        {/* BENTO GRID EXPLANATORY CARDS */}
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-6 sm:gap-8 items-stretch">
-          {/* Card 1: Pareamento Privado */}
-          <div className="md:col-span-12 lg:col-span-6 bg-[#f4eae0] border border-[#c7b7a3] p-8 sm:p-10 flex flex-col justify-between shadow-xs">
-            <div>
-              <h3 className="font-serif text-2xl sm:text-3xl text-[#561c24] font-normal leading-snug">
-                Código exclusivo de 2 membros
-              </h3>
-              <p className="text-sm text-[#6d2932] mt-3 font-sans leading-relaxed">
-                Um de vocês cria o espaço com um clique e recebe uma chave de acesso única e privada gerada na hora. O parceiro insere essa chave e ambos passam a compartilhar o mesmo espaço em tempo real.
-              </p>
-            </div>
-
-            <div className="mt-8 pt-6 border-t border-[#c7b7a3]/60 flex items-center justify-between text-xs">
-              <span className="text-[#561c24] font-semibold">Sem terceiros, sem seguidores</span>
-              <span className="font-mono text-[#6d2932]">Apenas vocês dois</span>
-            </div>
+        {/* Feature Cards Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8">
+          {/* Card 1 */}
+          <div className="bg-[#f4eae0] border border-[#c7b7a3] p-8 space-y-4 hover:border-[#561c24] transition-colors">
+            <span className="text-[10px] font-mono uppercase tracking-widest text-[#6d2932] border border-[#c7b7a3] px-2 py-0.5">
+              01 • Conexão por Slots
+            </span>
+            <h3 className="font-serif text-2xl text-[#561c24]">
+              Lobby com até 3 Espaços Simultâneos
+            </h3>
+            <p className="text-xs sm:text-sm text-[#6d2932] leading-relaxed">
+              Alterne com facilidade entre diferentes santuários de memórias ou relacionamentos com total privacidade e isolamento de dados.
+            </p>
           </div>
 
-          {/* Card 2: Linha do Tempo & Shows */}
-          <div className="md:col-span-12 lg:col-span-6 bg-[#f4eae0] border border-[#c7b7a3] p-8 sm:p-10 flex flex-col justify-between shadow-xs">
-            <div>
-              <h3 className="font-serif text-2xl sm:text-3xl text-[#561c24] font-normal leading-snug">
-                Shows, viagens e calendário de memórias
-              </h3>
-              <p className="text-sm text-[#6d2932] mt-3 font-sans leading-relaxed">
-                Contagem regressiva precisa em dias, horas e minutos para festivais, viagens, peças de teatro e datas de aniversário. Inclui um <strong>mini calendário mensal interativo</strong> com setas para explorar datas futuras e recordar momentos já vividos.
-              </p>
-            </div>
-
-            <div className="mt-8 pt-6 border-t border-[#c7b7a3]/60 flex items-center justify-between text-xs">
-              <span className="text-[#561c24] font-semibold">Contagem regressiva ao vivo</span>
-              <span className="font-mono text-[#6d2932]">Datas futuras e passadas</span>
-            </div>
+          {/* Card 2 */}
+          <div className="bg-[#f4eae0] border border-[#c7b7a3] p-8 space-y-4 hover:border-[#561c24] transition-colors">
+            <span className="text-[10px] font-mono uppercase tracking-widest text-[#6d2932] border border-[#c7b7a3] px-2 py-0.5">
+              02 • Linha do Tempo & Shows
+            </span>
+            <h3 className="font-serif text-2xl text-[#561c24]">
+              Contagem Regressiva e Calendário
+            </h3>
+            <p className="text-xs sm:text-sm text-[#6d2932] leading-relaxed">
+              Registre passagens, shows, festivais e datas importantes. Tenha um relógio de contagem regressiva sempre à vista.
+            </p>
           </div>
 
-          {/* Card 3: Listas & Ranking Conjunto */}
-          <div className="md:col-span-12 lg:col-span-7 bg-[#f4eae0] border border-[#c7b7a3] p-8 sm:p-10 flex flex-col justify-between shadow-xs">
-            <div>
-              <h3 className="font-serif text-2xl sm:text-3xl text-[#561c24] font-normal leading-snug">
-                Listas & Ranking com temáticas próprias
-              </h3>
-              <p className="text-sm text-[#6d2932] mt-3 font-sans leading-relaxed">
-                Além de listas clássicas para <em>Filmes & Séries</em>, <em>Livros</em> e <em>Lugares</em>, vocês podem criar <strong>qualquer lista temática própria</strong> (ex: Vinhos & Drinks, Cafés Especiais, Jogos de Tabuleiro, Receitas). Cada parceiro dá sua nota de 1 a 5 estrelas e deixa seu comentário; o app calcula a média exata do casal e ordena por maiores e menores notas.
-              </p>
-            </div>
-
-            <div className="mt-8 pt-6 border-t border-[#c7b7a3]/60 grid grid-cols-2 gap-4 text-xs">
-              <div>
-                <span className="block font-mono font-bold text-[#561c24] text-sm">Votos Individuais</span>
-                <span className="text-[#6d2932]">Notas & comentários de cada um</span>
-              </div>
-              <div>
-                <span className="block font-mono font-bold text-[#561c24] text-sm">Temáticas Livres</span>
-                <span className="text-[#6d2932]">Crie qualquer assunto que quiserem</span>
-              </div>
-            </div>
+          {/* Card 3 */}
+          <div className="bg-[#f4eae0] border border-[#c7b7a3] p-8 space-y-4 hover:border-[#561c24] transition-colors">
+            <span className="text-[10px] font-mono uppercase tracking-widest text-[#6d2932] border border-[#c7b7a3] px-2 py-0.5">
+              03 • Acervo Bilateral
+            </span>
+            <h3 className="font-serif text-2xl text-[#561c24]">
+              Filmes, Séries, Livros & Lugares
+            </h3>
+            <p className="text-xs sm:text-sm text-[#6d2932] leading-relaxed">
+              Avalie de 1 a 5 estrelas e adicione comentários mútuos para nunca mais perder a lista de restaurantes ou produções que assistiram.
+            </p>
           </div>
 
-          {/* Card 4: Cartas de Diálogo */}
-          <div className="md:col-span-12 lg:col-span-5 bg-[#561c24] text-[#E8d8c4] border border-[#561c24] p-8 sm:p-10 flex flex-col justify-between shadow-md">
-            <div>
-              <h3 className="font-serif text-2xl sm:text-3xl text-[#E8d8c4] font-normal leading-snug">
-                Baralho de cartas para conversas profundas
-              </h3>
-              <p className="text-sm text-[#c7b7a3] mt-3 font-sans leading-relaxed">
-                Cartas táteis para reacender a curiosidade e o diálogo a dois. Toque para virar em 3D e revelar perguntas sobre Romance, Filosofia e Criatividade — ou cadastrem suas próprias perguntas secretas de casal.
-              </p>
-            </div>
-
-            <div className="mt-8 pt-6 border-t border-[#c7b7a3]/40 flex items-center justify-between text-xs text-[#E8d8c4]">
-              <span>Toque para virar & botões ágeis</span>
-              <span className="font-mono text-[#c7b7a3]">+50 reflexões</span>
-            </div>
-          </div>
-
-          {/* Card 5: Métricas de Cumplicidade */}
-          <div className="md:col-span-12 bg-[#eee2d4] border border-[#c7b7a3] p-8 sm:p-10 flex flex-col md:flex-row items-center justify-between gap-8 shadow-xs">
-            <div className="max-w-2xl">
-              <h3 className="font-serif text-2xl sm:text-3xl text-[#561c24] font-normal leading-snug">
-                Mural de Memórias & Cumplicidade
-              </h3>
-              <p className="text-sm text-[#6d2932] mt-3 font-sans leading-relaxed">
-                Uma visão panorâmica e afetuosa de todo o acervo do casal: dias consecutivos juntos no app, total de experiências registradas, nota média histórica, amostras do topo e da base do ranking, e métricas em tempo real de cada lista criada.
-              </p>
-            </div>
-
-            <div className="shrink-0 flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
-              <button
-                type="button"
-                onClick={openCreateFlow}
-                className="w-full sm:w-auto px-7 py-3.5 bg-[#561c24] text-[#E8d8c4] text-xs font-semibold uppercase tracking-wider hover:bg-[#6d2932] transition-colors text-center cursor-pointer shadow-xs"
-              >
-                Começar Agora
-              </button>
-              <button
-                type="button"
-                onClick={() => startDemoMode()}
-                className="w-full sm:w-auto px-6 py-3.5 bg-[#f4eae0] border border-[#c7b7a3] text-[#561c24] text-xs font-semibold uppercase tracking-wider hover:border-[#561c24] transition-colors text-center cursor-pointer"
-              >
-                Testar Modo Demo
-              </button>
-            </div>
+          {/* Card 4 */}
+          <div className="bg-[#f4eae0] border border-[#c7b7a3] p-8 space-y-4 hover:border-[#561c24] transition-colors">
+            <span className="text-[10px] font-mono uppercase tracking-widest text-[#6d2932] border border-[#c7b7a3] px-2 py-0.5">
+              04 • Cartas de Diálogo
+            </span>
+            <h3 className="font-serif text-2xl text-[#561c24]">
+              Perguntas Reflexivas a Dois
+            </h3>
+            <p className="text-xs sm:text-sm text-[#6d2932] leading-relaxed">
+              Mais de 50 cartas para puxar assuntos profundos em noites tranquilas, além de permitir adicionar as próprias perguntas do casal.
+            </p>
           </div>
         </div>
       </main>
 
-      {/* ========================================================================= */}
-      {/* FOOTER: APENAS O BOTÃO DA WAVEM DESTACADO EM BORDÔ (SEM SLOGAN)          */}
-      {/* ========================================================================= */}
+      {/* FOOTER */}
       <footer className="py-8 px-6 max-w-6xl mx-auto w-full flex items-center justify-center">
         <a
           href="https://linktr.ee/thewavem"
@@ -396,6 +366,8 @@ export const LandingPage: React.FC = () => {
         title={
           isForgotPassword
             ? 'Recuperar Senha'
+            : authMode === 'login'
+            ? 'Entrar no Meu Espaço'
             : authMode === 'create'
             ? isRegister
               ? 'Criar Nosso Espaço'
@@ -405,10 +377,12 @@ export const LandingPage: React.FC = () => {
         subtitle={
           isForgotPassword
             ? 'Informe seu e-mail para receber as instruções de recuperação.'
+            : authMode === 'login'
+            ? 'Faça login para visualizar seus slots de santuário e acessar suas memórias a dois.'
             : authMode === 'create'
             ? isRegister
-              ? 'Crie sua conta para começar seu espaço compartilhado.'
-              : 'Entre com sua conta para continuar para seu espaço.'
+              ? 'Crie seu santuário compartilhado e convide sua pessoa especial.'
+              : 'Acesse o espaço já compartilhado com seu parceiro(a).'
             : 'Digite o código de convite que seu parceiro(a) gerou.'
         }
       >
@@ -444,7 +418,7 @@ export const LandingPage: React.FC = () => {
               <button
                 type="submit"
                 disabled={loadingAction}
-                className="w-full py-3 bg-[#561c24] text-[#E8d8c4] text-xs font-semibold uppercase tracking-wider hover:bg-[#6d2932] transition-colors cursor-pointer"
+                className="w-full py-3 bg-[#561c24] text-[#E8d8c4] text-xs font-semibold uppercase tracking-wider hover:bg-[#6d2932] transition-colors cursor-pointer shadow-xs"
               >
                 {loadingAction ? 'Enviando...' : 'Enviar Link de Redefinição'}
               </button>
@@ -470,7 +444,7 @@ export const LandingPage: React.FC = () => {
                 type="button"
                 onClick={handleGoogleAuth}
                 disabled={loadingAction}
-                className="w-full py-3 px-4 bg-[#f4eae0] border border-[#561c24] text-[#561c24] text-xs font-semibold uppercase tracking-wider hover:bg-[#E8d8c4] transition-colors flex items-center justify-center gap-2 cursor-pointer"
+                className="w-full py-3 px-4 bg-[#f4eae0] border border-[#561c24] text-[#561c24] text-xs uppercase tracking-widest font-medium hover:bg-[#E8d8c4] transition-colors flex items-center justify-center gap-2 cursor-pointer shadow-xs"
               >
                 <span>Continuar com Google</span>
               </button>
@@ -543,7 +517,7 @@ export const LandingPage: React.FC = () => {
                   />
                 </div>
 
-                {!isRegister && authMode === 'create' && (
+                {(authMode === 'login' || (!isRegister && authMode === 'create')) && (
                   <div className="text-right -mt-2">
                     <button
                       type="button"
@@ -562,10 +536,12 @@ export const LandingPage: React.FC = () => {
                 <button
                   type="submit"
                   disabled={loadingAction}
-                  className="w-full py-3 bg-[#561c24] text-[#E8d8c4] text-xs font-semibold uppercase tracking-wider hover:bg-[#6d2932] transition-colors cursor-pointer"
+                  className="w-full py-3 bg-[#561c24] text-[#E8d8c4] text-xs uppercase tracking-widest font-medium hover:bg-[#6d2932] transition-colors cursor-pointer shadow-xs"
                 >
                   {loadingAction
                     ? 'Processando...'
+                    : authMode === 'login'
+                    ? 'Acessar Meus Slots de Espaço'
                     : authMode === 'create'
                     ? isRegister
                       ? 'Criar Espaço Compartilhado'
@@ -574,30 +550,39 @@ export const LandingPage: React.FC = () => {
                 </button>
               </form>
 
-              <div className="flex items-center justify-between pt-2 border-t border-[#c7b7a3] text-xs text-[#6d2932]">
-                {authMode === 'create' ? (
+              <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-[#c7b7a3] text-xs text-[#6d2932]">
+                {authMode === 'login' ? (
                   <button
                     type="button"
                     onClick={() => {
-                      setIsRegister((prev) => !prev);
-                      setFormError('');
-                      setForgotSuccess('');
+                      setAuthMode('create');
+                      setIsRegister(true);
                     }}
                     className="underline hover:text-[#561c24] cursor-pointer"
                   >
-                    {isRegister ? 'Já tem conta? Entrar' : 'Não tem conta? Cadastrar'}
+                    Primeira vez aqui? Criar conta
+                  </button>
+                ) : authMode === 'create' ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAuthMode('login');
+                      setIsRegister(false);
+                    }}
+                    className="underline hover:text-[#561c24] cursor-pointer"
+                  >
+                    Já tem conta? Entrar no meu espaço
                   </button>
                 ) : (
                   <button
                     type="button"
                     onClick={() => {
-                      setAuthMode('create');
-                      setFormError('');
-                      setForgotSuccess('');
+                      setAuthMode('login');
+                      setIsRegister(false);
                     }}
                     className="underline hover:text-[#561c24] cursor-pointer"
                   >
-                    Criar um novo espaço
+                    Já tem conta? Entrar
                   </button>
                 )}
 
@@ -605,11 +590,11 @@ export const LandingPage: React.FC = () => {
                   type="button"
                   onClick={() => {
                     setAuthModalOpen(false);
-                    startDemoMode(inviteCode.trim() || undefined);
+                    startDemoMode(undefined, true);
                   }}
                   className="font-medium text-[#561c24] hover:underline cursor-pointer"
                 >
-                  Testar em modo demo →
+                  Explorar slots em demonstração →
                 </button>
               </div>
             </>

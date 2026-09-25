@@ -17,21 +17,26 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == userId;
     }
 
-    // Recupera o ID do casal vinculado ao perfil do usuário no documento /users/{uid}
-    function getUserCoupleId() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.coupleId;
+    // Recupera dados do usuário autenticado no documento /users/{uid}
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
     }
 
-    // Verifica se o usuário atual é membro ativo do casal informado:
-    // 1) Via coupleId salvo no documento do usuário (rápido e otimizado para queries)
-    // 2) Ou checando diretamente se o uid do usuário é partner1Id ou partner2Id no documento do casal
+    // Verifica se o usuário atual é membro ativo do espaço/casal informado:
+    // Suporta o novo modelo de multi-espaços (slots até 3) e retrocompatibilidade com coupleId único:
+    // 1) Checa se o usuário está na lista de members ou é partner1Id/partner2Id no documento do casal
+    // 2) Ou checa se o spaceId está no array spaceIds (ou coupleId) do perfil do usuário
     function isCoupleMember(coupleId) {
       return isSignedIn() && coupleId != null && coupleId != "" && (
-        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-         getUserCoupleId() == coupleId) ||
         (exists(/databases/$(database)/documents/couples/$(coupleId)) && (
+          (get(/databases/$(database)/documents/couples/$(coupleId)).data.members != null &&
+           request.auth.uid in get(/databases/$(database)/documents/couples/$(coupleId)).data.members) ||
           get(/databases/$(database)/documents/couples/$(coupleId)).data.partner1Id == request.auth.uid ||
           get(/databases/$(database)/documents/couples/$(coupleId)).data.partner2Id == request.auth.uid
+        )) ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && (
+          (getUserData().spaceIds != null && coupleId in getUserData().spaceIds) ||
+          getUserData().coupleId == coupleId
         ))
       );
     }
@@ -63,7 +68,7 @@ service cloud.firestore {
 
     // =========================================================================
     // COLEÇÃO: /users/{userId}
-    // Armazena perfis dos usuários (nome, e-mail, foto, vínculo de casal)
+    // Armazena perfis dos usuários (nome, e-mail, foto, array de slots spaceIds)
     // =========================================================================
     match /users/{userId} {
       // Leitura permitida para usuários autenticados (necessário para pareamento e exibição de parceiro)
@@ -79,6 +84,7 @@ service cloud.firestore {
       allow update: if isOwner(userId)
         && request.resource.data.uid == resource.data.uid
         && (!('displayName' in request.resource.data) || isNonEmptyString(request.resource.data.displayName, 1, 100))
+        && (!('spaceIds' in request.resource.data) || request.resource.data.spaceIds.size() <= 3)
         && (!('coupleId' in request.resource.data) || isOptionalString(request.resource.data.coupleId, 64))
         && (!('partnerName' in request.resource.data) || isOptionalString(request.resource.data.partnerName, 100));
 
@@ -88,32 +94,46 @@ service cloud.firestore {
 
     // =========================================================================
     // COLEÇÃO: /couples/{coupleId}
-    // Espaço privado e compartilhado do casal
+    // Espaços compartilhados de casais (slots com no máximo 2 membros por espaço)
     // =========================================================================
     match /couples/{coupleId} {
-      // Leitura permitida para autenticados (permite consultar códigos NOSSO-XXX ao parear)
+      // Leitura permitida para autenticados (permite consultar códigos NOSSO-XXX ao parear e carregar slots)
       allow read: if isSignedIn();
 
-      // Criação: apenas o usuário autenticado como parceiro 1
+      // Criação: apenas o usuário autenticado como parceiro 1 ou membro inicial
       allow create: if isSignedIn()
-        && request.resource.data.partner1Id == request.auth.uid
+        && (
+          request.resource.data.partner1Id == request.auth.uid ||
+          (request.resource.data.members != null && request.auth.uid in request.resource.data.members)
+        )
         && isNonEmptyString(request.resource.data.code, 4, 30)
         && isNonEmptyString(request.resource.data.partner1Name, 1, 100);
 
-      // Atualização permitida se:
-      // 1) O usuário já for membro do casal (atualizar nome do espaço, nomes, datas)
-      // 2) O usuário estiver se conectando via código na vaga livre de partner2
+      // Atualização permitida sob regras estritas:
+      // Caso 1: Membro ativo atualizando informações do espaço (não pode alterar o código nem partner1Id)
+      // Caso 2: Novo parceiro conectando-se na vaga livre de partner2 (limitado a no máximo 2 membros)
       allow update: if isSignedIn() && (
-        (resource.data.partner1Id == request.auth.uid || resource.data.partner2Id == request.auth.uid) ||
+        (
+          (
+            (resource.data.members != null && request.auth.uid in resource.data.members) ||
+            resource.data.partner1Id == request.auth.uid ||
+            resource.data.partner2Id == request.auth.uid
+          ) &&
+          request.resource.data.code == resource.data.code &&
+          request.resource.data.partner1Id == resource.data.partner1Id
+        ) ||
         (
           (resource.data.partner2Id == null || resource.data.partner2Id == "") &&
           request.resource.data.partner2Id == request.auth.uid &&
-          request.resource.data.partner1Id == resource.data.partner1Id
+          request.resource.data.partner1Id == resource.data.partner1Id &&
+          request.resource.data.code == resource.data.code &&
+          (request.resource.data.members == null || request.resource.data.members.size() <= 2)
         )
       );
 
-      // Exclusão permitida apenas se o usuário for um dos parceiros
+      // Exclusão permitida apenas se o usuário for um dos membros ou parceiros
       allow delete: if isSignedIn() && (
+        (resource.data.members != null && request.auth.uid in resource.data.members) ||
         resource.data.partner1Id == request.auth.uid ||
         resource.data.partner2Id == request.auth.uid
       );

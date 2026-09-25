@@ -9,7 +9,7 @@ interface NavbarProps {
 }
 
 export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab }) => {
-  const { logout, currentUserName, isDemo } = useAuth();
+  const { logout, currentUserName, isDemo, clearActiveSpace } = useAuth();
 
   const navItems: { id: NavTab; label: string; mobileLabel: string }[] = [
     { id: 'events', label: 'Timeline & Shows', mobileLabel: 'Eventos' },
@@ -77,8 +77,18 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab }) => {
             </div>
           </div>
 
-          {/* User profile & Logout */}
-          <div className="flex items-center gap-4">
+          {/* User profile & Actions */}
+          <div className="flex items-center gap-3.5">
+            <button
+              type="button"
+              onClick={clearActiveSpace}
+              className="bg-[#561c24] hover:bg-[#6d2932] text-[#E8d8c4] hover:text-white text-xs uppercase tracking-widest font-medium px-3.5 py-1.5 shadow-xs transition-colors cursor-pointer flex items-center gap-1.5 border border-[#561c24]"
+              title="Trocar de espaço (Lobby de slots)"
+            >
+              <span>⇄</span>
+              <span>Trocar Espaço</span>
+            </button>
+
             <button
               type="button"
               onClick={() => setActiveTab('profile')}
@@ -90,16 +100,16 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab }) => {
             <button
               type="button"
               onClick={logout}
-              className="text-xs text-[#6d2932] hover:text-[#561c24] underline-offset-4 hover:underline"
+              className="text-xs text-[#6d2932] hover:text-[#561c24] underline-offset-4 hover:underline font-medium cursor-pointer"
             >
-              {isDemo ? 'Sair do Teste' : 'Sair'}
+              {isDemo ? 'Sair do Teste' : 'Sair da conta'}
             </button>
           </div>
         </div>
       </nav>
 
-      {/* MOBILE TOP BAR (Minimal Header with explicit exit test button) */}
-      <div className="sm:hidden bg-[#f4eae0] border-b border-[#c7b7a3] px-4 py-2.5 flex items-center justify-between gap-2">
+      {/* MOBILE TOP BAR (Minimal Header with explicit switch space and exit test button) */}
+      <div className="sm:hidden bg-[#f4eae0] border-b border-[#c7b7a3] px-3.5 py-2.5 flex items-center justify-between gap-2">
         <button
           type="button"
           onClick={() => setActiveTab('events')}
@@ -109,22 +119,33 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab }) => {
         </button>
 
         <div className="flex items-center gap-2">
-          {isDemo && (
+          {/* Mobile Bordô Button for Trocar Espaço */}
+          <button
+            type="button"
+            onClick={clearActiveSpace}
+            className="bg-[#561c24] hover:bg-[#6d2932] text-[#E8d8c4] hover:text-white text-[11px] uppercase tracking-wider font-medium px-2.5 py-1 shadow-xs transition-colors cursor-pointer border border-[#561c24]"
+            title="Trocar de espaço"
+          >
+            ⇄ Espaços
+          </button>
+
+          {isDemo ? (
             <button
               type="button"
               onClick={logout}
-              className="px-2.5 py-1 bg-[#561c24] text-[#E8d8c4] text-[10px] font-bold uppercase tracking-wider hover:bg-[#6d2932] transition-colors"
+              className="px-2 py-1 bg-[#561c24] text-[#E8d8c4] text-[10px] font-bold uppercase tracking-wider hover:bg-[#6d2932] transition-colors"
             >
               Sair do Teste ✕
             </button>
+          ) : (
+            <button
+              type="button"
+              onClick={logout}
+              className="text-xs text-[#6d2932] hover:text-[#561c24] underline underline-offset-2 font-medium"
+            >
+              Sair da conta
+            </button>
           )}
-          <button
-            type="button"
-            onClick={() => setActiveTab('profile')}
-            className="text-xs font-medium text-[#561c24] underline underline-offset-2"
-          >
-            {currentUserName}
-          </button>
         </div>
       </div>
 

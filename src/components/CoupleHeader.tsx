@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 
 export const CoupleHeader: React.FC = () => {
-  const { couple, user, isDemo, demoPartnerView, toggleDemoPartner, currentUserName } = useAuth();
+  const { couple, user, isDemo, demoPartnerView, toggleDemoPartner, currentUserName, clearActiveSpace, logout } = useAuth();
   const [copied, setCopied] = useState<boolean>(false);
 
   if (!couple) return null;
@@ -59,6 +59,17 @@ export const CoupleHeader: React.FC = () => {
 
         {/* Right: Code & Actions */}
         <div className="flex items-center gap-3 self-start sm:self-auto flex-wrap">
+          {/* Switch Space / Slots Button in bordô wine */}
+          <button
+            type="button"
+            onClick={clearActiveSpace}
+            className="bg-[#561c24] hover:bg-[#6d2932] text-[#E8d8c4] hover:text-white text-xs uppercase tracking-widest font-medium px-4 py-2 shadow-xs transition-colors cursor-pointer flex items-center gap-1.5 border border-[#561c24] active:scale-95"
+            title="Ver todos os 3 slots e trocar de espaço"
+          >
+            <span>⇄</span>
+            <span>Trocar de Espaço</span>
+          </button>
+
           {/* Couple Code Box */}
           <div className="flex items-center gap-2 bg-[#E8d8c4] border border-[#c7b7a3] px-3 py-1.5">
             <span className="text-[10px] uppercase tracking-wider text-[#6d2932] font-semibold">
@@ -76,6 +87,16 @@ export const CoupleHeader: React.FC = () => {
               {copied ? 'Copiado!' : 'Copiar'}
             </button>
           </div>
+
+          {/* Logout / Sair da conta button */}
+          <button
+            type="button"
+            onClick={logout}
+            className="text-xs text-[#6d2932] hover:text-[#561c24] underline-offset-4 hover:underline font-medium cursor-pointer"
+            title="Encerrar sessão e sair da conta"
+          >
+            Sair da conta
+          </button>
 
           {/* Demo Mode switcher */}
           {isDemo && (
